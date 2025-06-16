@@ -1,0 +1,117 @@
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from typing import List
+from jose import JWTError
+from datetime import timedelta
+import json
+
+from .database import init_db
+from .models import User, Word
+from .schemas import UserCreate, Token, WordOut, ReviewIn, StatsOut
+from . import crud
+from .security import create_access_token
+
+app = FastAPI(title="Word Cards")
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+init_db()
+
+# import words from json on first run
+import os
+from .database import get_session
+from sqlmodel import select
+
+if not os.path.exists("wordcards.db"):
+    init_db()
+
+with get_session() as session:
+    if not session.exec(select(Word)).first():
+        with open(os.path.join(os.path.dirname(__file__), "..", "..", "TEST_Words.json"), "r", encoding="utf-8") as f:
+            data = json.load(f)
+            for w in data:
+                word = Word(word=w["word"], translations=json.dumps(w["translations"], ensure_ascii=False),
+                            phrases=json.dumps(w.get("phrases", []), ensure_ascii=False))
+                session.add(word)
+            session.commit()
+
+@app.post("/auth/register", response_model=Token)
+def register(user: UserCreate):
+    u = crud.create_user(user.username, user.password)
+    if not u:
+        raise HTTPException(status_code=400, detail="Username taken")
+    access = create_access_token({"sub": str(u.id)})
+    return Token(access_token=access)
+
+@app.post("/auth/login", response_model=Token)
+def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    user = crud.authenticate_user(form_data.username, form_data.password)
+    if not user:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+    access = create_access_token({"sub": str(user.id)})
+    return Token(access_token=access)
+
+
+from fastapi import Header
+from .security import SECRET_KEY, ALGORITHM, decode_token
+
+
+def get_current_user(token: str = Depends(oauth2_scheme)):
+    credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
+    try:
+        payload = decode_token(token)
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise credentials_exception
+    except JWTError:
+        raise credentials_exception
+    with get_session() as session:
+        user = session.get(User, int(user_id))
+        if user is None:
+            raise credentials_exception
+        return user
+
+@app.get("/words/today", response_model=List[WordOut])
+def words_today(current_user: User = Depends(get_current_user)):
+    words = crud.get_due_words(current_user.id)
+    result = []
+    for w in words:
+        result.append(WordOut(id=w.id, word=w.word, translations=json.loads(w.translations), phrases=json.loads(w.phrases) if w.phrases else []))
+    return result
+
+@app.post("/review/{word_id}")
+def review_word(word_id: int, info: ReviewIn, current_user: User = Depends(get_current_user)):
+    crud.record_review(current_user.id, word_id, info.quality)
+    return {"status": "ok"}
+
+@app.get("/search", response_model=List[WordOut])
+def search(q: str, current_user: User = Depends(get_current_user)):
+    words = crud.search_words(q)
+    result = []
+    for w in words:
+        result.append(WordOut(id=w.id, word=w.word, translations=json.loads(w.translations), phrases=json.loads(w.phrases) if w.phrases else []))
+    return result
+
+@app.get("/stats/overview", response_model=StatsOut)
+def stats_overview(current_user: User = Depends(get_current_user)):
+    with get_session() as session:
+        reviewed = session.exec(select(crud.ReviewLog).where(crud.ReviewLog.user_id == current_user.id)).count()
+        due_words = crud.get_due_words(current_user.id)
+        next_due = None
+        if due_words:
+            next_due = due_words[0].id
+        return StatsOut(reviewed=reviewed, due=len(due_words), next_due=next_due)
+
+@app.get("/admin/users")
+def admin_users(current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    users = crud.list_users()
+    return [{"id": u.id, "username": u.username, "role": u.role} for u in users]
+
+@app.put("/admin/users/{user_id}/reset_pwd")
+def admin_reset(user_id: int, password: str, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    crud.reset_password(user_id, password)
+    return {"status": "ok"}
