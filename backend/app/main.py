@@ -21,6 +21,7 @@ init_db()
 import os
 from .database import get_session
 from sqlmodel import select
+from sqlalchemy import func
 
 if not os.path.exists("wordcards.db"):
     init_db()
@@ -110,11 +111,22 @@ def search(q: str, current_user: User = Depends(get_current_user)):
 @app.get("/stats/overview", response_model=StatsOut)
 def stats_overview(current_user: User = Depends(get_current_user)):
     with get_session() as session:
-        reviewed = session.exec(select(crud.ReviewLog).where(crud.ReviewLog.user_id == current_user.id)).count()
+        result = session.exec(
+            select(func.count()).select_from(crud.ReviewLog).where(
+                crud.ReviewLog.user_id == current_user.id
+            )
+        )
+        reviewed = result.one()
+
         due_words = crud.get_due_words(current_user.id)
-        next_due = None
-        if due_words:
-            next_due = due_words[0].id
+
+        next_due_result = session.exec(
+            select(func.min(crud.ReviewLog.next_review)).where(
+                crud.ReviewLog.user_id == current_user.id
+            )
+        )
+        next_due = next_due_result.one()
+
         return StatsOut(reviewed=reviewed, due=len(due_words), next_due=next_due)
 
 
