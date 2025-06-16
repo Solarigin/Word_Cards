@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Depends, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from fastapi.middleware.cors import CORSMiddleware
 from typing import List
 from jose import JWTError
 import json
@@ -16,6 +17,15 @@ from . import crud
 from .security import create_access_token, decode_token
 
 app = FastAPI(title="Word Cards")
+
+# Allow frontend development server to access the API
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 

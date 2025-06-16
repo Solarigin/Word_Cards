@@ -1,7 +1,10 @@
 import api from './client'
 
 export const login = async (username: string, password: string) => {
-  const res = await api.post('/auth/login', { username, password })
+  const form = new URLSearchParams()
+  form.append('username', username)
+  form.append('password', password)
+  const res = await api.post('/auth/login', form)
   return res.data
 }
 
