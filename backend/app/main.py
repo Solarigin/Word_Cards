@@ -36,6 +36,9 @@ with get_session() as session:
                 session.add(word)
             session.commit()
 
+    # ensure default admin account exists
+    crud.ensure_default_admin()
+
 @app.post("/auth/register", response_model=Token)
 def register(user: UserCreate):
     u = crud.create_user(user.username, user.password)

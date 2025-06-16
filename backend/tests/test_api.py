@@ -46,3 +46,14 @@ def test_stats_overview():
     assert r_stats.status_code == 200
     data = r_stats.json()
     assert {"reviewed", "due", "next_due"} <= data.keys()
+
+
+def test_default_admin_login():
+    r = client.post("/auth/login", data={"username": "Admin", "password": "88888888"})
+    assert r.status_code == 200
+    token = r.json()["access_token"]
+    assert token
+    headers = auth_header(token)
+    r_admin = client.get("/admin/users", headers=headers)
+    assert r_admin.status_code == 200
+    assert any(u["username"] == "Admin" for u in r_admin.json())
