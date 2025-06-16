@@ -1,11 +1,15 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from typing import List
 from jose import JWTError
-from datetime import timedelta
 import json
+import os
+import csv
+import io
+from sqlmodel import select
+from sqlalchemy import func
 
-from .database import init_db
+from .database import init_db, get_session
 from .models import User, Word
 from .schemas import UserCreate, Token, WordOut, ReviewIn, StatsOut
 from . import crud
@@ -18,10 +22,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 init_db()
 
 # import words from json on first run
-import os
-from .database import get_session
-from sqlmodel import select
-from sqlalchemy import func
 
 if not os.path.exists("wordcards.db"):
     init_db()
@@ -67,13 +67,6 @@ def refresh(token: str = Depends(oauth2_scheme)):
         raise HTTPException(status_code=401, detail="Invalid token")
     access = create_access_token({"sub": user_id})
     return Token(access_token=access)
-
-
-from fastapi import Header, Response
-from .security import SECRET_KEY, ALGORITHM, decode_token
-import csv
-import io
-
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
     credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
