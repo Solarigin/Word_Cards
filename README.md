@@ -17,3 +17,14 @@ npm run dev
 ```
 
 The development server listens on `http://localhost:5173` by default.
+
+## Running tests
+
+Use `pytest` with the repository root on the Python path so that
+`backend.app.main` imports correctly:
+
+```bash
+PYTHONPATH=. pytest
+# or
+python -m pytest
+```
