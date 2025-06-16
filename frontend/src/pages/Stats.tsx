@@ -1,8 +1,14 @@
 import { useEffect, useState } from 'react'
 import { statsOverview } from '../api'
 
+interface StatsData {
+  reviewed: number
+  due: number
+  next_due: string | null
+}
+
 export default function Stats() {
-  const [data, setData] = useState<any>(null)
+  const [data, setData] = useState<StatsData | null>(null)
   useEffect(() => {
     statsOverview().then(setData)
   }, [])
