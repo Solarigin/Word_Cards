@@ -8,15 +8,10 @@ This project contains a small FastAPI backend and tests for a vocabulary learnin
 
 ## Frontend
 
-The frontend is located under `frontend/` and built with React, Vite and Tailwind CSS.
-
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-The development server listens on `http://localhost:5173` by default.
+The frontend is a simple static site located in `frontend/`.
+Open `frontend/index.html` in a browser or serve the directory with any HTTP server.
+It uses Tailwind CSS via CDN and communicates with the FastAPI backend running on
+`http://localhost:8000`.
 
 ## Running tests
 
