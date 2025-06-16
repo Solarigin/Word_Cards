@@ -1,3 +1,9 @@
+import Layout from '../components/Layout'
+
 export default function Admin() {
-  return <div className="p-4">Admin Page (todo)</div>
+  return (
+    <Layout>
+      <div>Admin Page (todo)</div>
+    </Layout>
+  )
 }

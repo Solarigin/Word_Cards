@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { fetchToday, reviewWord } from '../api'
+import Layout from '../components/Layout'
 
 interface Word {
   id: number
@@ -25,29 +26,36 @@ export default function Study() {
     setIndex((i) => i + 1)
   }
 
-  if (!current) return <div className="p-4">All done!</div>
+  if (!current)
+    return (
+      <Layout>
+        <div>All done!</div>
+      </Layout>
+    )
 
   return (
-    <div className="p-4 flex flex-col items-center gap-4">
-      <div
-        className="border p-8 text-center w-64 h-40 flex items-center justify-center cursor-pointer"
-        onClick={() => setShowBack((v) => !v)}
-      >
-        {showBack ? current.word_zh : current.word_en}
-      </div>
-      {showBack && (
-        <div className="flex gap-2">
-          {[0, 1, 2, 3, 4, 5].map((q) => (
-            <button
-              key={q}
-              className="border px-2"
-              onClick={() => handleQuality(q)}
-            >
-              {q}
-            </button>
-          ))}
+    <Layout>
+      <div className="flex flex-col items-center gap-4">
+        <div
+          className="border p-8 text-center w-64 h-40 flex items-center justify-center cursor-pointer bg-white shadow rounded"
+          onClick={() => setShowBack((v) => !v)}
+        >
+          {showBack ? current.word_zh : current.word_en}
         </div>
-      )}
-    </div>
+        {showBack && (
+          <div className="flex gap-2">
+            {[0, 1, 2, 3, 4, 5].map((q) => (
+              <button
+                key={q}
+                className="border rounded px-2 shadow"
+                onClick={() => handleQuality(q)}
+              >
+                {q}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </Layout>
   )
 }

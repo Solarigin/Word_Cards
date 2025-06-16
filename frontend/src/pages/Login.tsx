@@ -19,6 +19,7 @@ export default function Login() {
 
   return (
     <div className="p-4 max-w-sm mx-auto flex flex-col gap-2">
+      <h1 className="text-center text-2xl font-semibold mb-2">Word Cards</h1>
       <input
         className="border p-2"
         placeholder="Username"
@@ -32,10 +33,10 @@ export default function Login() {
         value={password}
         onChange={(e) => setPassword(e.target.value)}
       />
-      <button className="bg-blue-500 text-white p-2" onClick={handleLogin}>
+      <button className="border rounded px-4 py-2 shadow bg-blue-500 text-white" onClick={handleLogin}>
         Login
       </button>
-      <button className="border p-2" onClick={handleRegister}>
+      <button className="border rounded px-4 py-2 shadow bg-white hover:bg-gray-100" onClick={handleRegister}>
         Register
       </button>
     </div>
