@@ -95,3 +95,20 @@ def reset_password(user_id: int, new_password: str):
         session.add(user)
         session.commit()
         return user
+
+
+def ensure_default_admin():
+    """Create the initial admin account if it doesn't exist."""
+    with get_session() as session:
+        exists = session.exec(select(User).where(User.username == "Admin")).first()
+        if not exists:
+            admin = User(
+                username="Admin",
+                hashed_password=get_password_hash("88888888"),
+                role="admin",
+            )
+            session.add(admin)
+            session.commit()
+            session.refresh(admin)
+            return admin
+    return None
