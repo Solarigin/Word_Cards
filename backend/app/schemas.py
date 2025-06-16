@@ -1,0 +1,25 @@
+from typing import Optional, List
+from datetime import date
+from pydantic import BaseModel
+
+class UserCreate(BaseModel):
+    username: str
+    password: str
+
+class Token(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+
+class WordOut(BaseModel):
+    id: int
+    word: str
+    translations: list
+    phrases: Optional[list] = None
+
+class ReviewIn(BaseModel):
+    quality: int
+
+class StatsOut(BaseModel):
+    reviewed: int
+    due: int
+    next_due: Optional[date] = None
