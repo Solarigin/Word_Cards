@@ -3,7 +3,6 @@ from jose import jwt
 from datetime import datetime, timedelta, UTC
 import os
 
-
 # SECRET_KEY can be configured via environment variable.  It controls the
 # signing key for JWT tokens.  If not set, a default value of "secret" is used
 # which is sufficient for tests and local usage but should be overridden in
