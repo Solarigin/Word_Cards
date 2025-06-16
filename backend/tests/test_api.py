@@ -34,3 +34,15 @@ def test_refresh_and_search():
     assert r_search.status_code == 200
     data = r_search.json()
     assert any("absorb" == w["word"] for w in data)
+
+
+def test_stats_overview():
+    r = client.post("/auth/register", json={"username": "carol", "password": "pwd"})
+    if r.status_code == 400:
+        r = client.post("/auth/login", data={"username": "carol", "password": "pwd"})
+    token = r.json()["access_token"]
+    headers = auth_header(token)
+    r_stats = client.get("/stats/overview", headers=headers)
+    assert r_stats.status_code == 200
+    data = r_stats.json()
+    assert {"reviewed", "due", "next_due"} <= data.keys()
