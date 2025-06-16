@@ -9,7 +9,7 @@ from .database import init_db
 from .models import User, Word
 from .schemas import UserCreate, Token, WordOut, ReviewIn, StatsOut
 from . import crud
-from .security import create_access_token
+from .security import create_access_token, decode_token
 
 app = FastAPI(title="Word Cards")
 
@@ -52,8 +52,23 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
     return Token(access_token=access)
 
 
-from fastapi import Header
+@app.post("/auth/refresh", response_model=Token)
+def refresh(token: str = Depends(oauth2_scheme)):
+    try:
+        payload = decode_token(token)
+        user_id: str = payload.get("sub")
+        if user_id is None:
+            raise HTTPException(status_code=401, detail="Invalid token")
+    except JWTError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    access = create_access_token({"sub": user_id})
+    return Token(access_token=access)
+
+
+from fastapi import Header, Response
 from .security import SECRET_KEY, ALGORITHM, decode_token
+import csv
+import io
 
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
@@ -102,6 +117,23 @@ def stats_overview(current_user: User = Depends(get_current_user)):
             next_due = due_words[0].id
         return StatsOut(reviewed=reviewed, due=len(due_words), next_due=next_due)
 
+
+@app.get("/stats/export")
+def stats_export(current_user: User = Depends(get_current_user)):
+    logs = crud.get_review_logs(current_user.id)
+    output = io.StringIO()
+    writer = csv.writer(output)
+    writer.writerow(["word_id", "quality", "last_interval", "next_review", "reviewed_at"])
+    for log in logs:
+        writer.writerow([
+            log.word_id,
+            log.quality,
+            log.last_interval,
+            log.next_review.isoformat(),
+            log.reviewed_at.isoformat(),
+        ])
+    return Response(content=output.getvalue(), media_type="text/csv")
+
 @app.get("/admin/users")
 def admin_users(current_user: User = Depends(get_current_user)):
     if current_user.role != "admin":
@@ -115,3 +147,4 @@ def admin_reset(user_id: int, password: str, current_user: User = Depends(get_cu
         raise HTTPException(status_code=403, detail="Not authorized")
     crud.reset_password(user_id, password)
     return {"status": "ok"}
+

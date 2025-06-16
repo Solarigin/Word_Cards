@@ -69,7 +69,15 @@ def record_review(user_id: int, word_id: int, quality: int):
 def search_words(query: str):
     q = query.lower()
     with get_session() as session:
-        statement = select(Word).where(Word.word.contains(q))
+        statement = select(Word).where(
+            (Word.word.contains(q)) | (Word.translations.contains(q))
+        )
+        return session.exec(statement).all()
+
+
+def get_review_logs(user_id: int):
+    with get_session() as session:
+        statement = select(ReviewLog).where(ReviewLog.user_id == user_id)
         return session.exec(statement).all()
 
 

@@ -3,4 +3,4 @@ uvicorn
 sqlmodel
 passlib[bcrypt]
 pytest
-jose
+python-jose[cryptography]
