@@ -4,3 +4,5 @@ sqlmodel
 passlib[bcrypt]
 pytest
 python-jose[cryptography]
+httpx<0.27
+python-multipart
