@@ -55,7 +55,7 @@ def get_due_words(user_id: int, limit: int | None = None):
         for word, review in session.exec(statement).all():
             if not review or review.next_review <= today:
                 words.append(word)
-        if limit:
+        if limit is not None:
             words = words[:limit]
         return words
 
