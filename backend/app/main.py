@@ -12,7 +12,16 @@ from sqlalchemy import func
 
 from .database import init_db, get_session
 from .models import User, Word
-from .schemas import UserCreate, Token, WordOut, ReviewIn, StatsOut
+from .schemas import (
+    UserCreate,
+    Token,
+    WordOut,
+    ReviewIn,
+    StatsOut,
+    UserOut,
+    UserUpdate,
+    PasswordUpdate,
+)
 from . import crud
 from .security import create_access_token, decode_token
 
@@ -164,5 +173,27 @@ def admin_reset(user_id: int, password: str, current_user: User = Depends(get_cu
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
     crud.reset_password(user_id, password)
+    return {"status": "ok"}
+
+
+@app.get("/users/me", response_model=UserOut)
+def get_me(current_user: User = Depends(get_current_user)):
+    return UserOut(id=current_user.id, username=current_user.username, role=current_user.role)
+
+
+@app.put("/users/me", response_model=UserOut)
+def update_me(info: UserUpdate, current_user: User = Depends(get_current_user)):
+    with get_session() as session:
+        user = session.get(User, current_user.id)
+        user.username = info.username
+        session.add(user)
+        session.commit()
+        session.refresh(user)
+        return UserOut(id=user.id, username=user.username, role=user.role)
+
+
+@app.put("/users/me/password")
+def change_password(info: PasswordUpdate, current_user: User = Depends(get_current_user)):
+    crud.reset_password(current_user.id, info.password)
     return {"status": "ok"}
 

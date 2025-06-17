@@ -68,6 +68,7 @@ function showDashboard() {
       <button id="study" class="hover:text-blue-400">Study</button>
       <button id="search" class="hover:text-blue-400">Search</button>
       <button id="stats" class="hover:text-blue-400">Stats</button>
+      <button id="settings" class="hover:text-blue-400">Settings</button>
       <button id="logout" class="ml-auto hover:text-blue-400">Logout</button>
     </nav>
     <main id="main" class="p-4"></main>`;
@@ -75,18 +76,16 @@ function showDashboard() {
   document.getElementById('study').onclick = showStudy;
   document.getElementById('search').onclick = showSearch;
   document.getElementById('stats').onclick = showStats;
+  document.getElementById('settings').onclick = showSettings;
   showStudy();
 }
 
 let studyWords = [];
 let studyIndex = 0;
 let showBack = false;
-let dailyCount = 5;
+let dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
 
 async function showStudy() {
-  const n = prompt('How many words today? (min 5)', dailyCount);
-  const num = parseInt(n || dailyCount, 10);
-  dailyCount = isNaN(num) ? dailyCount : Math.max(5, num);
   studyWords = await api('/words/today?limit=' + dailyCount);
   studyIndex = 0;
   showBack = false;
@@ -97,7 +96,7 @@ function renderStudy() {
   const w = studyWords[studyIndex];
   const main = document.getElementById('main');
   if (!w) {
-    main.innerHTML = '<div>All done!</div>';
+    main.innerHTML = studyIndex === 0 ? '<div>No words due today</div>' : '<div>All done!</div>';
     return;
   }
   const translation = w.translations.map(t => `${t.type || ''} ${t.translation}`).join('<br>');
@@ -187,6 +186,46 @@ async function showStats() {
       <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${data.due}</div><div class="text-gray-500">Due Today</div></div>
       <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${data.next_due ? new Date(data.next_due).toLocaleDateString() : 'N/A'}</div><div class="text-gray-500">Next Due</div></div>
     </div>`;
+}
+
+function showSettings() {
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div class="flex flex-col gap-4 max-w-sm mx-auto">
+      <div>
+        <label class="block mb-1">Daily words</label>
+        <input id="dailyInput" type="number" min="1" class="border p-2 w-full" value="${dailyCount}">
+      </div>
+      <div>
+        <label class="block mb-1">Username</label>
+        <input id="usernameInput" class="border p-2 w-full">
+      </div>
+      <div>
+        <label class="block mb-1">New Password</label>
+        <input id="passwordInput" type="password" class="border p-2 w-full">
+      </div>
+      <button id="saveSettings" class="border rounded px-4 py-2 shadow bg-blue-500 text-white">Save</button>
+      <div id="settingsMsg" class="text-green-600"></div>
+    </div>`;
+  api('/users/me').then(data => {
+    document.getElementById('usernameInput').value = data.username;
+  });
+  document.getElementById('saveSettings').onclick = async () => {
+    const daily = parseInt(document.getElementById('dailyInput').value, 10);
+    if (!isNaN(daily) && daily > 0) {
+      dailyCount = daily;
+      localStorage.setItem('dailyCount', daily);
+    }
+    const username = document.getElementById('usernameInput').value.trim();
+    const password = document.getElementById('passwordInput').value;
+    try {
+      if (username) await api('/users/me', { method: 'PUT', body: { username } });
+      if (password) await api('/users/me/password', { method: 'PUT', body: { password } });
+      document.getElementById('settingsMsg').textContent = 'Saved';
+    } catch {
+      document.getElementById('settingsMsg').textContent = 'Error';
+    }
+  };
 }
 
 window.addEventListener('load', () => {
