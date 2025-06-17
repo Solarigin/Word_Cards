@@ -86,6 +86,7 @@ let showBack = false;
 let dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
 
 async function showStudy() {
+  dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
   studyWords = await api('/words/today?limit=' + dailyCount);
   studyIndex = 0;
   showBack = false;
@@ -133,7 +134,7 @@ function showSearch() {
       </div>
       <ul id="results" class="space-y-2"></ul>
     </div>
-    <div id="modal" class="fixed inset-0 bg-black/50 items-center justify-center hidden">
+    <div id="modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden">
       <div class="bg-white p-4 rounded shadow max-w-md w-full">
         <button id="closeModal" class="float-right">✖</button>
         <div id="modalContent" class="mt-2"></div>
