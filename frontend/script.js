@@ -73,7 +73,7 @@ function showDashboard() {
     </nav>
     <main id="main" class="p-4"></main>`;
   document.getElementById('logout').onclick = () => { localStorage.removeItem('token'); showLogin(); };
-  document.getElementById('study').onclick = showStudy;
+  document.getElementById('study').onclick = () => showStudy();
   document.getElementById('search').onclick = showSearch;
   document.getElementById('stats').onclick = showStats;
   document.getElementById('settings').onclick = showSettings;
@@ -83,11 +83,14 @@ function showDashboard() {
 let studyWords = [];
 let studyIndex = 0;
 let showBack = false;
+let studyAll = false;
 let dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
 
-async function showStudy() {
+async function showStudy(all = false) {
   dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
-  studyWords = await api('/words/today?limit=' + dailyCount);
+  studyAll = all;
+  const url = all ? '/words/today' : '/words/today?limit=' + dailyCount;
+  studyWords = await api(url);
   studyIndex = 0;
   showBack = false;
   renderStudy();
@@ -97,7 +100,17 @@ function renderStudy() {
   const w = studyWords[studyIndex];
   const main = document.getElementById('main');
   if (!w) {
-    main.innerHTML = studyIndex === 0 ? '<div>No words due today</div>' : '<div>All done!</div>';
+    if (studyIndex === 0) {
+      main.innerHTML = '<div>No words due today</div>';
+    } else if (!studyAll) {
+      main.innerHTML = '<div class="text-center p-4">今日学习已经完成</div>';
+      setTimeout(() => {
+        main.innerHTML += '<div class="text-center mt-4"><button id="continueStudy" class="border rounded px-4 py-2 shadow bg-blue-500 text-white">继续学习</button></div>';
+        document.getElementById('continueStudy').onclick = () => showStudy(true);
+      }, 2000);
+    } else {
+      main.innerHTML = '<div>All done!</div>';
+    }
     return;
   }
   const translation = w.translations.map(t => `${t.type || ''} ${t.translation}`).join('<br>');
@@ -183,8 +196,10 @@ async function showStats() {
   const limit = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
   const data = await api('/stats/overview?limit=' + limit);
   document.getElementById('main').innerHTML = `
-    <div class="grid sm:grid-cols-3 gap-4 text-center">
-      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${data.reviewed}</div><div class="text-gray-500">Reviewed</div></div>
+    <div class="grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 text-center">
+      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${data.total_words}</div><div class="text-gray-500">Total Words</div></div>
+      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${data.studied_words}</div><div class="text-gray-500">Studied</div></div>
+      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${data.reviewed}</div><div class="text-gray-500">Reviews</div></div>
       <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${data.due}</div><div class="text-gray-500">Due Today</div></div>
       <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${data.next_due ? new Date(data.next_due).toLocaleDateString() : 'N/A'}</div><div class="text-gray-500">Next Due</div></div>
     </div>`;

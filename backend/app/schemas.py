@@ -23,6 +23,8 @@ class StatsOut(BaseModel):
     reviewed: int
     due: int
     next_due: Optional[date] = None
+    total_words: int
+    studied_words: int
 
 
 class UserOut(BaseModel):

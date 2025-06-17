@@ -133,7 +133,8 @@ def stats_overview(limit: int | None = None, current_user: User = Depends(get_cu
         )
         reviewed = result.one()
 
-        due_words = crud.get_due_words(current_user.id)
+        due_words_all = crud.get_due_words(current_user.id)
+        due_words = due_words_all
         if limit:
             due_words = due_words[:limit]
 
@@ -144,7 +145,20 @@ def stats_overview(limit: int | None = None, current_user: User = Depends(get_cu
         )
         next_due = next_due_result.one()
 
-        return StatsOut(reviewed=reviewed, due=len(due_words), next_due=next_due)
+        total_words = session.exec(select(func.count()).select_from(Word)).one()
+        studied_words = session.exec(
+            select(func.count(func.distinct(crud.ReviewLog.word_id))).where(
+                crud.ReviewLog.user_id == current_user.id
+            )
+        ).one()
+
+        return StatsOut(
+            reviewed=reviewed,
+            due=len(due_words),
+            next_due=next_due,
+            total_words=total_words,
+            studied_words=studied_words,
+        )
 
 
 @app.get("/stats/export")

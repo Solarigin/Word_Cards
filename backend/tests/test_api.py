@@ -45,7 +45,7 @@ def test_stats_overview():
     r_stats = client.get("/stats/overview", headers=headers)
     assert r_stats.status_code == 200
     data = r_stats.json()
-    assert {"reviewed", "due", "next_due"} <= data.keys()
+    assert {"reviewed", "due", "next_due", "total_words", "studied_words"} <= data.keys()
 
 
 def test_default_admin_login():
