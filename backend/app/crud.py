@@ -1,18 +1,31 @@
 from sqlmodel import select
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta, date
+import json
 from .models import User, Word, ReviewLog
 from .database import get_session
 from .security import get_password_hash, verify_password
 
 
 def create_user(username: str, password: str, role: str = "user"):
+    """Create a new user and persist it to the database and a JSON file."""
     with get_session() as session:
         user = User(username=username, hashed_password=get_password_hash(password), role=role)
         session.add(user)
         try:
             session.commit()
             session.refresh(user)
+
+            # also store basic user info in users.json for simple persistence
+            try:
+                with open("users.json", "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except FileNotFoundError:
+                data = []
+            data.append({"id": user.id, "username": user.username, "role": user.role})
+            with open("users.json", "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+
             return user
         except IntegrityError:
             session.rollback()
@@ -28,7 +41,9 @@ def authenticate_user(username: str, password: str):
         return None
 
 
-def get_due_words(user_id: int):
+def get_due_words(user_id: int, limit: int | None = None):
+    """Return words due for review. If *limit* is provided, only that many words
+    are returned."""
     today = date.today()
     with get_session() as session:
         statement = select(Word, ReviewLog).join(ReviewLog, Word.id == ReviewLog.word_id, isouter=True).where(
@@ -38,6 +53,8 @@ def get_due_words(user_id: int):
         for word, review in session.exec(statement).all():
             if not review or review.next_review <= today:
                 words.append(word)
+        if limit:
+            words = words[:limit]
         return words
 
 
