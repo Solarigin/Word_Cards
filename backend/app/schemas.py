@@ -23,3 +23,17 @@ class StatsOut(BaseModel):
     reviewed: int
     due: int
     next_due: Optional[date] = None
+
+
+class UserOut(BaseModel):
+    id: int
+    username: str
+    role: str
+
+
+class UserUpdate(BaseModel):
+    username: str
+
+
+class PasswordUpdate(BaseModel):
+    password: str
