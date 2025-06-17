@@ -94,8 +94,8 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
         return user
 
 @app.get("/words/today", response_model=List[WordOut])
-def words_today(current_user: User = Depends(get_current_user)):
-    words = crud.get_due_words(current_user.id)
+def words_today(limit: int | None = None, current_user: User = Depends(get_current_user)):
+    words = crud.get_due_words(current_user.id, limit)
     result = []
     for w in words:
         result.append(WordOut(id=w.id, word=w.word, translations=json.loads(w.translations), phrases=json.loads(w.phrases) if w.phrases else []))
