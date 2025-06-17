@@ -180,7 +180,8 @@ function speak(text) {
 }
 
 async function showStats() {
-  const data = await api('/stats/overview');
+  const limit = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
+  const data = await api('/stats/overview?limit=' + limit);
   document.getElementById('main').innerHTML = `
     <div class="grid sm:grid-cols-3 gap-4 text-center">
       <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${data.reviewed}</div><div class="text-gray-500">Reviewed</div></div>

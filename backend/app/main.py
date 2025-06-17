@@ -124,7 +124,7 @@ def search(q: str, current_user: User = Depends(get_current_user)):
     return result
 
 @app.get("/stats/overview", response_model=StatsOut)
-def stats_overview(current_user: User = Depends(get_current_user)):
+def stats_overview(limit: int | None = None, current_user: User = Depends(get_current_user)):
     with get_session() as session:
         result = session.exec(
             select(func.count()).select_from(crud.ReviewLog).where(
@@ -134,6 +134,8 @@ def stats_overview(current_user: User = Depends(get_current_user)):
         reviewed = result.one()
 
         due_words = crud.get_due_words(current_user.id)
+        if limit:
+            due_words = due_words[:limit]
 
         next_due_result = session.exec(
             select(func.min(crud.ReviewLog.next_review)).where(
