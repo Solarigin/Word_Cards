@@ -57,3 +57,30 @@ def test_default_admin_login():
     r_admin = client.get("/admin/users", headers=headers)
     assert r_admin.status_code == 200
     assert any(u["username"] == "Admin" for u in r_admin.json())
+
+
+def test_daily_limit_respected():
+    import uuid
+    username = "user" + uuid.uuid4().hex[:8]
+    r = client.post("/auth/register", json={"username": username, "password": "pwd"})
+    if r.status_code == 400:
+        r = client.post("/auth/login", data={"username": username, "password": "pwd"})
+    token = r.json()["access_token"]
+    headers = auth_header(token)
+
+    r_today = client.get("/words/today", params={"limit": 1}, headers=headers)
+    assert r_today.status_code == 200
+    data = r_today.json()
+    assert len(data) == 1
+    word_id = data[0]["id"]
+
+    r_review = client.post(f"/review/{word_id}", json={"quality": 5}, headers=headers)
+    assert r_review.status_code == 200
+
+    r_today2 = client.get("/words/today", params={"limit": 1}, headers=headers)
+    assert r_today2.status_code == 200
+    assert r_today2.json() == []
+
+    r_stats = client.get("/stats/overview", params={"limit": 1}, headers=headers)
+    assert r_stats.status_code == 200
+    assert r_stats.json()["due"] == 0

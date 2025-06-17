@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List
+from datetime import datetime
 from jose import JWTError
 import json
 import os
@@ -104,10 +105,31 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 
 @app.get("/words/today", response_model=List[WordOut])
 def words_today(limit: int | None = None, current_user: User = Depends(get_current_user)):
-    words = crud.get_due_words(current_user.id, limit)
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    reviewed_today = 0
+    if limit:
+        with get_session() as session:
+            reviewed_today = session.exec(
+                select(func.count()).select_from(crud.ReviewLog).where(
+                    crud.ReviewLog.user_id == current_user.id,
+                    crud.ReviewLog.reviewed_at >= today_start,
+                )
+            ).one()
+        remaining = max(limit - reviewed_today, 0)
+    else:
+        remaining = None
+
+    words = crud.get_due_words(current_user.id, remaining)
     result = []
     for w in words:
-        result.append(WordOut(id=w.id, word=w.word, translations=json.loads(w.translations), phrases=json.loads(w.phrases) if w.phrases else []))
+        result.append(
+            WordOut(
+                id=w.id,
+                word=w.word,
+                translations=json.loads(w.translations),
+                phrases=json.loads(w.phrases) if w.phrases else [],
+            )
+        )
     return result
 
 @app.post("/review/{word_id}")
@@ -135,7 +157,15 @@ def stats_overview(limit: int | None = None, current_user: User = Depends(get_cu
 
         due_words = crud.get_due_words(current_user.id)
         if limit:
-            due_words = due_words[:limit]
+            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            reviewed_today = session.exec(
+                select(func.count()).select_from(crud.ReviewLog).where(
+                    crud.ReviewLog.user_id == current_user.id,
+                    crud.ReviewLog.reviewed_at >= today_start,
+                )
+            ).one()
+            remaining = max(limit - reviewed_today, 0)
+            due_words = due_words[:remaining]
 
         next_due_result = session.exec(
             select(func.min(crud.ReviewLog.next_review)).where(
