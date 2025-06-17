@@ -201,6 +201,10 @@ function showSettings() {
         <input id="usernameInput" class="border p-2 w-full">
       </div>
       <div>
+        <label class="block mb-1">Old Password</label>
+        <input id="oldPasswordInput" type="password" class="border p-2 w-full">
+      </div>
+      <div>
         <label class="block mb-1">New Password</label>
         <input id="passwordInput" type="password" class="border p-2 w-full">
       </div>
@@ -217,10 +221,16 @@ function showSettings() {
       localStorage.setItem('dailyCount', daily);
     }
     const username = document.getElementById('usernameInput').value.trim();
-    const password = document.getElementById('passwordInput').value;
+    const oldPwd = document.getElementById('oldPasswordInput').value;
+    const newPwd = document.getElementById('passwordInput').value;
     try {
       if (username) await api('/users/me', { method: 'PUT', body: { username } });
-      if (password) await api('/users/me/password', { method: 'PUT', body: { password } });
+      if (oldPwd && newPwd) {
+        await api('/users/me/password', { method: 'PUT', body: { old_password: oldPwd, new_password: newPwd } });
+        localStorage.removeItem('token');
+        showLogin();
+        return;
+      }
       document.getElementById('settingsMsg').textContent = 'Saved';
     } catch {
       document.getElementById('settingsMsg').textContent = 'Error';

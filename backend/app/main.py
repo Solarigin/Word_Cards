@@ -22,7 +22,7 @@ from .schemas import (
     UserUpdate,
     PasswordUpdate,
 )
-from . import crud
+from . import crud, security
 from .security import create_access_token, decode_token
 
 app = FastAPI(title="Word Cards")
@@ -194,6 +194,10 @@ def update_me(info: UserUpdate, current_user: User = Depends(get_current_user)):
 
 @app.put("/users/me/password")
 def change_password(info: PasswordUpdate, current_user: User = Depends(get_current_user)):
-    crud.reset_password(current_user.id, info.password)
+    with get_session() as session:
+        user = session.get(User, current_user.id)
+        if not security.verify_password(info.old_password, user.hashed_password):
+            raise HTTPException(status_code=400, detail="Incorrect password")
+    crud.reset_password(current_user.id, info.new_password)
     return {"status": "ok"}
 

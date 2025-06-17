@@ -46,8 +46,10 @@ def get_due_words(user_id: int, limit: int | None = None):
     are returned."""
     today = date.today()
     with get_session() as session:
-        statement = select(Word, ReviewLog).join(ReviewLog, Word.id == ReviewLog.word_id, isouter=True).where(
-            (ReviewLog.user_id == user_id) | (ReviewLog.user_id.is_(None))
+        statement = select(Word, ReviewLog).join(
+            ReviewLog,
+            (Word.id == ReviewLog.word_id) & (ReviewLog.user_id == user_id),
+            isouter=True,
         )
         words = []
         for word, review in session.exec(statement).all():

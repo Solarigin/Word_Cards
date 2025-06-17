@@ -36,4 +36,5 @@ class UserUpdate(BaseModel):
 
 
 class PasswordUpdate(BaseModel):
-    password: str
+    old_password: str
+    new_password: str
