@@ -9,6 +9,14 @@ let loadedBook = null;
 let wordBookData = [];
 let progress = 0;
 
+function handleKey(e) {
+  if (!showBack) return;
+  if (['1', '2', '3'].includes(e.key)) {
+    const btn = document.querySelector(`#buttons button[data-q="${parseInt(e.key, 10) - 1}"]`);
+    if (btn) btn.click();
+  }
+}
+
 async function ensureWordBook() {
   currentBook = localStorage.getItem('wordBook') || 'TEST';
   if (loadedBook !== currentBook) {
@@ -34,9 +42,15 @@ async function showStudy() {
   dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
   await ensureWordBook();
   progress = parseInt(localStorage.getItem('progress_' + currentBook), 10) || 0;
-  const slice = wordBookData.slice(progress, progress + dailyCount);
-  studyWords = slice.map(w => ({ word: w, mode: 'normal' }));
-  studyIndex = 0;
+  if (localStorage.getItem('study_done') === 'true') {
+    studyWords = [];
+    studyIndex = 1; // force "All done" message
+  } else {
+    const slice = wordBookData.slice(progress, progress + dailyCount);
+    studyWords = slice.map(w => ({ word: w, mode: 'normal' }));
+    studyIndex = 0;
+    localStorage.setItem('study_done', 'false');
+  }
   showBack = false;
   renderStudy();
 }
@@ -50,6 +64,9 @@ function renderStudy() {
         <button id="more5" class="border rounded px-3 py-1 bg-blue-500 text-white">继续学习5个</button>
         <button id="more10" class="border rounded px-3 py-1 bg-blue-500 text-white">继续学习10个</button>
       </div>`;
+    if (studyIndex > 0) {
+      localStorage.setItem('study_done', 'true');
+    }
     if (!card) {
       const b5 = document.getElementById('more5');
       if (b5) {
@@ -66,9 +83,9 @@ function renderStudy() {
   const front = card.mode === 'normal' ? w.word : translation;
   const back = card.mode === 'normal' ? backNormal : w.word;
   main.innerHTML = `
-    <div class="flex flex-col items-center gap-4">
-      <div id="card" class="border p-4 text-center w-72 min-h-40 flex items-center justify-center cursor-pointer bg-white shadow rounded">${showBack ? back : front}</div>
-      <div id="buttons" class="flex gap-2 ${showBack ? '' : 'hidden'}">
+    <div class="flex flex-col items-center gap-4 min-h-screen">
+      <div id="card" class="border p-4 text-center w-80 h-48 overflow-y-auto flex items-center justify-center cursor-pointer bg-white shadow rounded">${showBack ? back : front}</div>
+      <div id="buttons" class="flex gap-2 ${showBack ? '' : 'hidden'} fixed bottom-4 left-1/2 -translate-x-1/2">
         ${['不认识','模糊','认识'].map((t,i) => {
           const colors = ['bg-red-500 text-white','bg-yellow-400','bg-green-500 text-white'];
           return `<button class="border rounded px-2 shadow ${colors[i]}" data-q="${i}">${t}</button>`;
@@ -155,19 +172,21 @@ function speak(text) {
 async function continueStudy(n) {
   dailyCount += n;
   localStorage.setItem('dailyCount', dailyCount);
+  localStorage.setItem('study_done', 'false');
   await showStudy();
 }
 
 async function showStats() {
   await ensureWordBook();
   progress = parseInt(localStorage.getItem('progress_' + currentBook), 10) || 0;
-  const reviewed = progress;
-  const due = Math.max(wordBookData.length - progress, 0);
+  const learned = progress;
+  const daily = dailyCount;
+  const total = wordBookData.length;
   document.getElementById('main').innerHTML = `
     <div class="grid sm:grid-cols-3 gap-4 text-center">
-      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${reviewed}</div><div class="text-gray-500">Reviewed</div></div>
-      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${due}</div><div class="text-gray-500">Due</div></div>
-      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">N/A</div><div class="text-gray-500">Next Due</div></div>
+      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${learned}</div><div class="text-gray-500">已学习</div></div>
+      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${daily}</div><div class="text-gray-500">Daily Words</div></div>
+      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${total}</div><div class="text-gray-500">总词数</div></div>
     </div>`;
 }
 
@@ -249,6 +268,7 @@ function init() {
   };
   document.getElementById('stats').onclick = showStats;
   document.getElementById('settings').onclick = showSettings;
+  document.addEventListener('keydown', handleKey);
   showStudy();
 }
 
