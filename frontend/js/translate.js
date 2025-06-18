@@ -35,7 +35,12 @@ function init() {
       output.value = res.result;
     } catch (err) {
       console.error(err);
-      alert('翻译失败');
+      let msg = '翻译失败';
+      try {
+        const data = JSON.parse(err.message);
+        if (data.detail) msg = data.detail;
+      } catch {}
+      alert(msg);
     } finally {
       loading.classList.add('hidden');
       btn.disabled = false;
