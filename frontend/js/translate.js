@@ -1,9 +1,25 @@
 function init() {
+  if (!localStorage.getItem('token')) {
+    window.location.href = 'login.html';
+    return;
+  }
+
   const btn = document.getElementById('btnTranslate');
   const input = document.getElementById('inputText');
   const output = document.getElementById('outputText');
   const langSel = document.getElementById('targetLang');
   const loading = document.getElementById('loading');
+
+  const backBtn = document.getElementById('dashboard');
+  const logoutBtn = document.getElementById('logout');
+
+  backBtn.onclick = () => {
+    window.location.href = 'dashboard.html';
+  };
+  logoutBtn.onclick = () => {
+    localStorage.removeItem('token');
+    window.location.href = 'login.html';
+  };
 
   btn.onclick = async () => {
     const text = input.value.trim();

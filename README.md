@@ -15,7 +15,8 @@ Open `frontend/index.html` in a browser or serve the directory with any HTTP ser
 whether a token exists in `localStorage`.
 It uses Tailwind CSS via CDN and communicates with the FastAPI backend running on
 `http://localhost:8000`.
-The dashboard navigation now includes a link to `translate.html` which provides a simple translation interface.
+The dashboard navigation includes a link to `translate.html`. The translation page
+now shares the same Tailwind based styling and provides navigation back to the dashboard.
 
 ## Running tests
 
