@@ -53,13 +53,22 @@ init_db()
 if not os.path.exists("wordcards.db"):
     init_db()
 
+WORDBOOK_DIR = os.path.join(os.path.dirname(__file__), "..", "..", "wordbooks")
+DEFAULT_BOOK = os.environ.get("WORDBOOK_NAME", "TEST")
+
 with get_session() as session:
     if not session.exec(select(Word)).first():
-        with open(os.path.join(os.path.dirname(__file__), "..", "..", "TEST_Words.json"), "r", encoding="utf-8") as f:
+        book_file = os.path.join(WORDBOOK_DIR, f"wordBook_{DEFAULT_BOOK}.json")
+        if not os.path.exists(book_file):
+            book_file = os.path.join(os.path.dirname(__file__), "..", "..", "TEST_Words.json")
+        with open(book_file, "r", encoding="utf-8") as f:
             data = json.load(f)
             for w in data:
-                word = Word(word=w["word"], translations=json.dumps(w["translations"], ensure_ascii=False),
-                            phrases=json.dumps(w.get("phrases", []), ensure_ascii=False))
+                word = Word(
+                    word=w["word"],
+                    translations=json.dumps(w["translations"], ensure_ascii=False),
+                    phrases=json.dumps(w.get("phrases", []), ensure_ascii=False),
+                )
                 session.add(word)
             session.commit()
 
@@ -199,6 +208,16 @@ def stats_export(current_user: User = Depends(get_current_user)):
             log.reviewed_at.isoformat(),
         ])
     return Response(content=output.getvalue(), media_type="text/csv")
+
+
+@app.get("/wordbooks")
+def list_wordbooks():
+    books = []
+    if os.path.exists(WORDBOOK_DIR):
+        for fn in os.listdir(WORDBOOK_DIR):
+            if fn.startswith("wordBook_") and fn.endswith(".json"):
+                books.append(fn[len("wordBook_"):-5])
+    return books
 
 @app.get("/admin/users")
 def admin_users(current_user: User = Depends(get_current_user)):

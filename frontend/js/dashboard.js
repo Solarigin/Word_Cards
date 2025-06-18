@@ -12,27 +12,45 @@ function logout() {
 
 async function showStudy() {
   dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
-  studyWords = await api('/words/today?limit=' + dailyCount);
+  const words = await api('/words/today?limit=' + dailyCount);
+  studyWords = words.map(w => ({ word: w, mode: 'normal' }));
   studyIndex = 0;
   showBack = false;
   renderStudy();
 }
 
 function renderStudy() {
-  const w = studyWords[studyIndex];
+  const card = studyWords[studyIndex];
   const main = document.getElementById('main');
-  if (!w) {
-    main.innerHTML = studyIndex === 0 ? '<div>No words due today</div>' : '<div>All done!</div>';
+  if (!card) {
+    main.innerHTML = studyIndex === 0 ? '<div>No words due today</div>' : `<div>All done!</div>
+      <div class="mt-4 flex gap-2">
+        <button id="more5" class="border rounded px-3 py-1 bg-blue-500 text-white">继续学习5个</button>
+        <button id="more10" class="border rounded px-3 py-1 bg-blue-500 text-white">继续学习10个</button>
+      </div>`;
+    if (!card) {
+      const b5 = document.getElementById('more5');
+      if (b5) {
+        b5.onclick = () => continueStudy(5);
+        document.getElementById('more10').onclick = () => continueStudy(10);
+      }
+    }
     return;
   }
+  const w = card.word;
   const translation = w.translations.map(t => `${t.type || ''} ${t.translation}`).join('<br>');
   const phrases = w.phrases ? w.phrases.map(p => `${p.phrase} - ${p.translation}`).join('<br>') : '';
-  const back = `<div>${translation}${phrases ? '<hr class="my-2">' + phrases : ''}</div>`;
+  const backNormal = `<div>${translation}${phrases ? '<hr class="my-2">' + phrases : ''}</div>`;
+  const front = card.mode === 'normal' ? w.word : translation;
+  const back = card.mode === 'normal' ? backNormal : w.word;
   main.innerHTML = `
     <div class="flex flex-col items-center gap-4">
-      <div id="card" class="border p-4 text-center w-72 min-h-40 flex items-center justify-center cursor-pointer bg-white shadow rounded">${showBack ? back : w.word}</div>
+      <div id="card" class="border p-4 text-center w-72 min-h-40 flex items-center justify-center cursor-pointer bg-white shadow rounded">${showBack ? back : front}</div>
       <div id="buttons" class="flex gap-2 ${showBack ? '' : 'hidden'}">
-        ${['不认识','模糊','认识'].map((t,i) => `<button class="border rounded px-2 shadow" data-q="${i}">${t}</button>`).join('')}
+        ${['不认识','模糊','认识'].map((t,i) => {
+          const colors = ['bg-red-500 text-white','bg-yellow-400','bg-green-500 text-white'];
+          return `<button class="border rounded px-2 shadow ${colors[i]}" data-q="${i}">${t}</button>`;
+        }).join('')}
       </div>
     </div>`;
   document.getElementById('card').onclick = () => { showBack = !showBack; renderStudy(); };
@@ -42,7 +60,11 @@ function renderStudy() {
       const q = parseInt(btn.dataset.q,10);
       await api('/review/' + w.id, { method: 'POST', body: { quality: map[q] } });
       showBack = false;
-      if(q < 2) studyWords.push(w);
+      if (q === 0) {
+        studyWords.push(card);
+      } else if (q === 1) {
+        studyWords.splice(studyIndex + 1, 0, { word: w, mode: 'rev' });
+      }
       studyIndex++;
       renderStudy();
     };
@@ -104,6 +126,12 @@ function speak(text) {
   window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
 
+async function continueStudy(n) {
+  dailyCount += n;
+  localStorage.setItem('dailyCount', dailyCount);
+  await showStudy();
+}
+
 async function showStats() {
   const limit = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
   const data = await api('/stats/overview?limit=' + limit);
@@ -124,6 +152,10 @@ function showSettings() {
         <input id="dailyInput" type="number" min="1" class="border p-2 w-full" value="${dailyCount}">
       </div>
       <div>
+        <label class="block mb-1">Word Book</label>
+        <select id="wordBookSelect" class="border p-2 w-full"></select>
+      </div>
+      <div>
         <label class="block mb-1">Username</label>
         <input id="usernameInput" class="border p-2 w-full">
       </div>
@@ -141,12 +173,20 @@ function showSettings() {
   api('/users/me').then(data => {
     document.getElementById('usernameInput').value = data.username;
   });
+  api('/wordbooks').then(list => {
+    const select = document.getElementById('wordBookSelect');
+    select.innerHTML = list.map(n => `<option value="${n}">${n}</option>`).join('');
+    const current = localStorage.getItem('wordBook');
+    if (current) select.value = current;
+  });
   document.getElementById('saveSettings').onclick = async () => {
     const daily = parseInt(document.getElementById('dailyInput').value, 10);
     if (!isNaN(daily) && daily > 0) {
       dailyCount = daily;
       localStorage.setItem('dailyCount', daily);
     }
+    const book = document.getElementById('wordBookSelect').value;
+    if (book) localStorage.setItem('wordBook', book);
     const username = document.getElementById('usernameInput').value.trim();
     const oldPwd = document.getElementById('oldPasswordInput').value;
     const newPwd = document.getElementById('passwordInput').value;
