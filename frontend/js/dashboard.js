@@ -175,7 +175,6 @@ function init() {
   document.getElementById('search').onclick = showSearch;
   document.getElementById('translate').onclick = () => {
     window.location.href = 'translate.html';
-  };
   document.getElementById('stats').onclick = showStats;
   document.getElementById('settings').onclick = showSettings;
   showStudy();
