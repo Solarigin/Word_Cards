@@ -5,8 +5,17 @@ let studyIndex = 0;
 let showBack = false;
 let dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
 let currentBook = localStorage.getItem('wordBook') || 'TEST';
+let loadedBook = null;
 let wordBookData = [];
 let progress = 0;
+
+async function ensureWordBook() {
+  currentBook = localStorage.getItem('wordBook') || 'TEST';
+  if (loadedBook !== currentBook) {
+    wordBookData = await loadWordBook(currentBook);
+    loadedBook = currentBook;
+  }
+}
 
 function saveProgress() {
   localStorage.setItem('progress_' + currentBook, progress);
@@ -23,8 +32,7 @@ function logout() {
 
 async function showStudy() {
   dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
-  currentBook = localStorage.getItem('wordBook') || 'TEST';
-  wordBookData = await loadWordBook(currentBook);
+  await ensureWordBook();
   progress = parseInt(localStorage.getItem('progress_' + currentBook), 10) || 0;
   const slice = wordBookData.slice(progress, progress + dailyCount);
   studyWords = slice.map(w => ({ word: w, mode: 'normal' }));
@@ -86,7 +94,8 @@ function renderStudy() {
   });
 }
 
-function showSearch() {
+async function showSearch() {
+  await ensureWordBook();
   const main = document.getElementById('main');
   main.innerHTML = `
     <div class="flex flex-col gap-4 max-w-xl mx-auto">
@@ -105,12 +114,14 @@ function showSearch() {
   const input = document.getElementById('q');
   const results = document.getElementById('results');
   let data = [];
-  async function search() {
-    const q = input.value.trim();
+  function search() {
+    const q = input.value.trim().toLowerCase();
     if(!q) return;
-    const res = await api('/search?q=' + encodeURIComponent(q));
-    data = res;
-    const list = res.map((w,i) => `<li data-i="${i}" class="p-2 border rounded shadow bg-white cursor-pointer"><span class="text-blue-500 font-semibold">${w.word}</span> <span class="text-gray-600">${w.translations.map(t=>t.translation).join(', ')}</span></li>`).join('');
+    data = wordBookData.filter(w =>
+      w.word.toLowerCase().includes(q) ||
+      (w.translations.some(t => t.translation.includes(q)))
+    );
+    const list = data.map((w,i) => `<li data-i="${i}" class="p-2 border rounded shadow bg-white cursor-pointer"><span class="text-blue-500 font-semibold">${w.word}</span> <span class="text-gray-600">${w.translations.map(t=>t.translation).join(', ')}</span></li>`).join('');
     results.innerHTML = list;
   }
   document.getElementById('go').onclick = search;
@@ -148,13 +159,15 @@ async function continueStudy(n) {
 }
 
 async function showStats() {
-  const limit = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
-  const data = await api('/stats/overview?limit=' + limit);
+  await ensureWordBook();
+  progress = parseInt(localStorage.getItem('progress_' + currentBook), 10) || 0;
+  const reviewed = progress;
+  const due = Math.max(wordBookData.length - progress, 0);
   document.getElementById('main').innerHTML = `
     <div class="grid sm:grid-cols-3 gap-4 text-center">
-      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${data.reviewed}</div><div class="text-gray-500">Reviewed</div></div>
-      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${data.due}</div><div class="text-gray-500">Due Today</div></div>
-      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${data.next_due ? new Date(data.next_due).toLocaleDateString() : 'N/A'}</div><div class="text-gray-500">Next Due</div></div>
+      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${reviewed}</div><div class="text-gray-500">Reviewed</div></div>
+      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${due}</div><div class="text-gray-500">Due</div></div>
+      <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">N/A</div><div class="text-gray-500">Next Due</div></div>
     </div>`;
 }
 
@@ -201,7 +214,10 @@ function showSettings() {
       localStorage.setItem('dailyCount', daily);
     }
     const book = document.getElementById('wordBookSelect').value;
-    if (book) localStorage.setItem('wordBook', book);
+    if (book) {
+      localStorage.setItem('wordBook', book);
+      loadedBook = null;
+    }
     const username = document.getElementById('usernameInput').value.trim();
     const oldPwd = document.getElementById('oldPasswordInput').value;
     const newPwd = document.getElementById('passwordInput').value;
