@@ -5,6 +5,7 @@ This project contains a small FastAPI backend and tests for a vocabulary learnin
 ## Configuration
 
 - `SECRET_KEY` – signing key used for JWT tokens. If the environment variable is unset the application defaults to `"secret"`. Override it in production for better security.
+- `TRANSLATE_API_KEY` – API key for the external translation service used by the `/translate` endpoint.
 
 ## Frontend
 
@@ -14,6 +15,7 @@ Open `frontend/index.html` in a browser or serve the directory with any HTTP ser
 whether a token exists in `localStorage`.
 It uses Tailwind CSS via CDN and communicates with the FastAPI backend running on
 `http://localhost:8000`.
+The dashboard navigation now includes a link to `translate.html` which provides a simple translation interface.
 
 ## Running tests
 
