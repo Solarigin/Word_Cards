@@ -10,6 +10,8 @@ This project contains a small FastAPI backend and tests for a vocabulary learnin
 
 The frontend is a simple static site located in `frontend/`.
 Open `frontend/index.html` in a browser or serve the directory with any HTTP server.
+`index.html` now redirects to either `login.html` or `dashboard.html` depending on
+whether a token exists in `localStorage`.
 It uses Tailwind CSS via CDN and communicates with the FastAPI backend running on
 `http://localhost:8000`.
 

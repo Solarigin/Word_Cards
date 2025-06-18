@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Word Cards - Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50">
+  <div class="p-4 max-w-sm mx-auto flex flex-col gap-2">
+    <h1 class="text-center text-2xl font-semibold mb-2">Word Cards</h1>
+    <input id="user" class="border p-2" placeholder="Username">
+    <input id="pwd" class="border p-2" type="password" placeholder="Password">
+    <button id="login" class="border rounded px-4 py-2 shadow bg-blue-500 text-white">Login</button>
+    <button id="register" class="border rounded px-4 py-2 shadow bg-white hover:bg-gray-100">Register</button>
+    <div id="msg" class="text-red-600"></div>
+  </div>
+  <script src="js/common.js"></script>
+  <script src="js/login.js"></script>
+</body>
+</html>
