@@ -8,6 +8,7 @@ import json
 import os
 import csv
 import io
+import asyncio
 import httpx
 from sqlmodel import select
 from sqlalchemy import func
@@ -255,28 +256,35 @@ async def translate(payload: TranslationRequest):
     user_prompt = f"Translate the text to {lang}, please do not explain any sentences, just translate or leave them as they are.:\n{text}"
 
     async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            TRANSLATE_API_URL,
-            headers={
-                "Authorization": f"Bearer {TRANSLATE_API_KEY}",
-                "Content-Type": "application/json",
-            },
-            json={
-                "model": "Qwen/QwQ-32B",
-                "messages": [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt},
-                ],
-                "stream": False,
-                "max_tokens": 1000,
-                "temperature": 0,
-                "top_p": 1,
-                "n": 1,
-                "response_format": {"type": "text"},
-            },
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        result = data["choices"][0]["message"]["content"].strip()
-        return {"result": result}
+        last_error = None
+        for _ in range(3):
+            try:
+                resp = await client.post(
+                    TRANSLATE_API_URL,
+                    headers={
+                        "Authorization": f"Bearer {TRANSLATE_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "Qwen/QwQ-32B",
+                        "messages": [
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
+                        ],
+                        "stream": False,
+                        "max_tokens": 1000,
+                        "temperature": 0,
+                        "top_p": 1,
+                        "n": 1,
+                        "response_format": {"type": "text"},
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                result = data["choices"][0]["message"]["content"].strip()
+                return {"result": result}
+            except Exception as exc:
+                last_error = exc
+                await asyncio.sleep(0.5)
+        raise HTTPException(status_code=502, detail="Translation service error") from last_error
 
