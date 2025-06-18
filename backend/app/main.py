@@ -219,6 +219,17 @@ def list_wordbooks():
                 books.append(fn[len("wordBook_"):-5])
     return books
 
+
+@app.get("/wordbook/{name}")
+def get_wordbook(name: str):
+    """Return the raw word list for the given word book."""
+    filename = os.path.join(WORDBOOK_DIR, f"wordBook_{name}.json")
+    if not os.path.exists(filename):
+        raise HTTPException(status_code=404, detail="Word book not found")
+    with open(filename, "r", encoding="utf-8") as f:
+        data = json.load(f)
+    return data
+
 @app.get("/admin/users")
 def admin_users(current_user: User = Depends(get_current_user)):
     if current_user.role != "admin":

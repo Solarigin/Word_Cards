@@ -4,6 +4,17 @@ let studyWords = [];
 let studyIndex = 0;
 let showBack = false;
 let dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
+let currentBook = localStorage.getItem('wordBook') || 'TEST';
+let wordBookData = [];
+let progress = 0;
+
+function saveProgress() {
+  localStorage.setItem('progress_' + currentBook, progress);
+}
+
+async function loadWordBook(name) {
+  return api('/wordbook/' + name);
+}
 
 function logout() {
   localStorage.removeItem('token');
@@ -12,8 +23,11 @@ function logout() {
 
 async function showStudy() {
   dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
-  const words = await api('/words/today?limit=' + dailyCount);
-  studyWords = words.map(w => ({ word: w, mode: 'normal' }));
+  currentBook = localStorage.getItem('wordBook') || 'TEST';
+  wordBookData = await loadWordBook(currentBook);
+  progress = parseInt(localStorage.getItem('progress_' + currentBook), 10) || 0;
+  const slice = wordBookData.slice(progress, progress + dailyCount);
+  studyWords = slice.map(w => ({ word: w, mode: 'normal' }));
   studyIndex = 0;
   showBack = false;
   renderStudy();
@@ -55,15 +69,16 @@ function renderStudy() {
     </div>`;
   document.getElementById('card').onclick = () => { showBack = !showBack; renderStudy(); };
   document.querySelectorAll('#buttons button').forEach(btn => {
-    btn.onclick = async () => {
-      const map = [1,3,5];
-      const q = parseInt(btn.dataset.q,10);
-      await api('/review/' + w.id, { method: 'POST', body: { quality: map[q] } });
+    btn.onclick = () => {
+      const q = parseInt(btn.dataset.q, 10);
       showBack = false;
       if (q === 0) {
         studyWords.push(card);
       } else if (q === 1) {
         studyWords.splice(studyIndex + 1, 0, { word: w, mode: 'rev' });
+      } else if (q === 2) {
+        progress++;
+        saveProgress();
       }
       studyIndex++;
       renderStudy();
