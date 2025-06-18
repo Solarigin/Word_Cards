@@ -23,6 +23,7 @@ from .schemas import (
     UserOut,
     UserUpdate,
     PasswordUpdate,
+    TranslationRequest,
 )
 from . import crud, security
 from .security import create_access_token, decode_token
@@ -241,7 +242,9 @@ def change_password(info: PasswordUpdate, current_user: User = Depends(get_curre
 
 # Simple translation endpoint using external API
 @app.post("/translate")
-async def translate(text: str, lang: str):
+async def translate(payload: TranslationRequest):
+    text = payload.text
+    lang = payload.lang
     if not TRANSLATE_API_KEY:
         raise HTTPException(status_code=500, detail="Translation API key not configured")
 
