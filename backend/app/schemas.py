@@ -38,3 +38,8 @@ class UserUpdate(BaseModel):
 class PasswordUpdate(BaseModel):
     old_password: str
     new_password: str
+
+
+class TranslationRequest(BaseModel):
+    text: str
+    lang: str
