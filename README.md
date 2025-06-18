@@ -18,6 +18,9 @@ It uses Tailwind CSS via CDN and communicates with the FastAPI backend running o
 The dashboard navigation includes a link to `translate.html`. The translation page
 now shares the same Tailwind based styling and provides navigation back to the dashboard.
 
+Word books are stored as JSON files under the `wordbooks/` directory using the naming
+scheme `wordBook_<NAME>.json`.
+
 ## Running tests
 
 Use `pytest` with the repository root on the Python path so that
