@@ -1,89 +1,14 @@
-const API_URL = 'http://localhost:8000';
-
-function api(path, options = {}) {
-  options.headers = options.headers || {};
-  const token = localStorage.getItem('token');
-  if (token) options.headers['Authorization'] = 'Bearer ' + token;
-  if (options.body && !(options.body instanceof FormData)) {
-    options.headers['Content-Type'] = 'application/json';
-    options.body = JSON.stringify(options.body);
-  }
-  return fetch(API_URL + path, options).then(async (res) => {
-    if (!res.ok) throw new Error(await res.text());
-    const ct = res.headers.get('content-type');
-    return ct && ct.includes('application/json') ? res.json() : res.text();
-  });
-}
-
-function showLogin() {
-  document.body.innerHTML = `
-  <div class="p-4 max-w-sm mx-auto flex flex-col gap-2">
-    <h1 class="text-center text-2xl font-semibold mb-2">Word Cards</h1>
-    <input id="user" class="border p-2" placeholder="Username">
-    <input id="pwd" class="border p-2" type="password" placeholder="Password">
-    <button id="login" class="border rounded px-4 py-2 shadow bg-blue-500 text-white">Login</button>
-    <button id="register" class="border rounded px-4 py-2 shadow bg-white hover:bg-gray-100">Register</button>
-    <div id="msg" class="text-red-600"></div>
-  </div>`;
-  document.getElementById('login').onclick = async () => {
-    const u = document.getElementById('user').value;
-    const p = document.getElementById('pwd').value;
-    try {
-      const data = await login(u, p);
-      localStorage.setItem('token', data.access_token);
-      showDashboard();
-    } catch (e) {
-      document.getElementById('msg').textContent = 'Login failed';
-    }
-  };
-  document.getElementById('register').onclick = async () => {
-    const u = document.getElementById('user').value;
-    const p = document.getElementById('pwd').value;
-    try {
-      await register(u, p);
-      const data = await login(u, p);
-      localStorage.setItem('token', data.access_token);
-      showDashboard();
-    } catch (e) {
-      document.getElementById('msg').textContent = 'Register failed';
-    }
-  };
-}
-
-function login(username, password) {
-  const form = new URLSearchParams();
-  form.append('username', username);
-  form.append('password', password);
-  return fetch(API_URL + '/auth/login', { method: 'POST', body: form })
-    .then(res => res.ok ? res.json() : Promise.reject());
-}
-
-function register(username, password) {
-  return api('/auth/register', { method: 'POST', body: { username, password } });
-}
-
-function showDashboard() {
-  document.body.innerHTML = `
-    <nav class="bg-gray-800 text-white px-4 py-3 flex gap-4 items-center">
-      <button id="study" class="hover:text-blue-400">Study</button>
-      <button id="search" class="hover:text-blue-400">Search</button>
-      <button id="stats" class="hover:text-blue-400">Stats</button>
-      <button id="settings" class="hover:text-blue-400">Settings</button>
-      <button id="logout" class="ml-auto hover:text-blue-400">Logout</button>
-    </nav>
-    <main id="main" class="p-4"></main>`;
-  document.getElementById('logout').onclick = () => { localStorage.removeItem('token'); showLogin(); };
-  document.getElementById('study').onclick = showStudy;
-  document.getElementById('search').onclick = showSearch;
-  document.getElementById('stats').onclick = showStats;
-  document.getElementById('settings').onclick = showSettings;
-  showStudy();
-}
+// Dashboard page script
 
 let studyWords = [];
 let studyIndex = 0;
 let showBack = false;
 let dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
+
+function logout() {
+  localStorage.removeItem('token');
+  window.location.href = 'login.html';
+}
 
 async function showStudy() {
   dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
@@ -230,7 +155,7 @@ function showSettings() {
       if (oldPwd && newPwd) {
         await api('/users/me/password', { method: 'PUT', body: { old_password: oldPwd, new_password: newPwd } });
         localStorage.removeItem('token');
-        showLogin();
+        window.location.href = 'login.html';
         return;
       }
       document.getElementById('settingsMsg').textContent = 'Saved';
@@ -240,7 +165,17 @@ function showSettings() {
   };
 }
 
-window.addEventListener('load', () => {
-  if (localStorage.getItem('token')) showDashboard();
-  else showLogin();
-});
+function init() {
+  if (!localStorage.getItem('token')) {
+    window.location.href = 'login.html';
+    return;
+  }
+  document.getElementById('logout').onclick = logout;
+  document.getElementById('study').onclick = showStudy;
+  document.getElementById('search').onclick = showSearch;
+  document.getElementById('stats').onclick = showStats;
+  document.getElementById('settings').onclick = showSettings;
+  showStudy();
+}
+
+window.addEventListener('DOMContentLoaded', init);
