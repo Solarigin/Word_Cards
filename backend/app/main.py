@@ -8,6 +8,7 @@ import json
 import os
 import csv
 import io
+import httpx
 from sqlmodel import select
 from sqlalchemy import func
 
@@ -38,6 +39,10 @@ app.add_middleware(
 )
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+# Translation API configuration
+TRANSLATE_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
+TRANSLATE_API_KEY = os.environ.get("TRANSLATE_API_KEY")
 
 init_db()
 
@@ -232,4 +237,43 @@ def change_password(info: PasswordUpdate, current_user: User = Depends(get_curre
             raise HTTPException(status_code=400, detail="Incorrect password")
     crud.reset_password(current_user.id, info.new_password)
     return {"status": "ok"}
+
+
+# Simple translation endpoint using external API
+@app.post("/translate")
+async def translate(text: str, lang: str):
+    if not TRANSLATE_API_KEY:
+        raise HTTPException(status_code=500, detail="Translation API key not configured")
+
+    system_prompt = (
+        "You are a translation engine, you can only translate text and cannot interpret it, "
+        "and do not explain. Please respect the original line breaks."
+    )
+    user_prompt = f"Translate the text to {lang}, please do not explain any sentences, just translate or leave them as they are.:\n{text}"
+
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            TRANSLATE_API_URL,
+            headers={
+                "Authorization": f"Bearer {TRANSLATE_API_KEY}",
+                "Content-Type": "application/json",
+            },
+            json={
+                "model": "Qwen/QwQ-32B",
+                "messages": [
+                    {"role": "system", "content": system_prompt},
+                    {"role": "user", "content": user_prompt},
+                ],
+                "stream": False,
+                "max_tokens": 1000,
+                "temperature": 0,
+                "top_p": 1,
+                "n": 1,
+                "response_format": {"type": "text"},
+            },
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        result = data["choices"][0]["message"]["content"].strip()
+        return {"result": result}
 
