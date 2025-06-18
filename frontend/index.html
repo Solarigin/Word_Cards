@@ -4,9 +4,14 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Word Cards</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    if (localStorage.getItem('token')) {
+      window.location.href = 'dashboard.html';
+    } else {
+      window.location.href = 'login.html';
+    }
+  </script>
 </head>
-<body class="bg-gray-50">
-  <script src="script.js"></script>
+<body>
 </body>
 </html>
