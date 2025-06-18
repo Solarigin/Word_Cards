@@ -296,7 +296,7 @@ async def translate(payload: TranslationRequest):
                         "Content-Type": "application/json",
                     },
                     json={
-                        "model": "Qwen/QwQ-32B",
+                        "model": "deepseek-ai/DeepSeek-V3",
                         "messages": [
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_prompt},
