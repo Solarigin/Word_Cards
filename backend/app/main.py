@@ -42,7 +42,7 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 # Translation API configuration
 TRANSLATE_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
-TRANSLATE_API_KEY = os.environ.get("TRANSLATE_API_KEY")
+TRANSLATE_API_KEY = os.environ.get("TRANSLATE_API_KEY") or "sk-qgcgyorurjbwphwzfdwwqwiyydzhptbaypsaybdzakcxlkjm"
 
 init_db()
 
