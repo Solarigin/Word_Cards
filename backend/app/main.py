@@ -11,6 +11,7 @@ import csv
 import io
 import asyncio
 import httpx
+import logging
 from sqlmodel import select
 from sqlalchemy import func
 
@@ -35,6 +36,7 @@ from .security import create_access_token, decode_token
 load_dotenv()
 
 app = FastAPI(title="Word Cards")
+logger = logging.getLogger("uvicorn.error")
 
 # Allow frontend development server to access the API
 app.add_middleware(
@@ -389,15 +391,31 @@ def list_fav(current_user: User = Depends(get_current_user)):
 
 @app.post("/generate_article")
 async def generate_article(payload: ArticleRequest, current_user: User = Depends(get_current_user)):
+    # Fetch the words from the database
     with get_session() as session:
-        words = [session.get(Word, wid) for wid in payload.word_ids]
-    words = [w.word for w in words if w]
-    prompt = "请使用以下单词写一段约100字的短文：" + ",".join(words)
+        stmt = select(Word).where(Word.id.in_(payload.word_ids))
+        words = [w.word for w in session.exec(stmt)]
+
+    if not words:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Word list is empty")
+    if len(words) > 30:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST, "Too many words (limit 30)")
+
+    # Compose prompts for the language model
+    system_prompt = (
+        "You are a helpful writing assistant. "
+        "When the user provides a list of words, compose a ~100-word passage "
+        "that naturally uses ALL the words. Do NOT add extra words to the list."
+    )
+    user_prompt = "Please write a 100-word passage using the following words:\n" + ", ".join(words)
+
     if not TRANSLATE_API_KEY:
-        return {"result": "API KEY not configured"}
-    async with httpx.AsyncClient() as client:
-        last_error = None
-        for _ in range(3):
+        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "API KEY not configured")
+
+    # Call the external LLM service with retries
+    async with httpx.AsyncClient(timeout=20) as client:
+        backoff = [0.5, 1.5, 3.0]
+        for delay in backoff:
             try:
                 resp = await client.post(
                     TRANSLATE_API_URL,
@@ -408,10 +426,11 @@ async def generate_article(payload: ArticleRequest, current_user: User = Depends
                     json={
                         "model": "deepseek-ai/DeepSeek-V3",
                         "messages": [
-                            {"role": "user", "content": prompt},
+                            {"role": "system", "content": system_prompt},
+                            {"role": "user", "content": user_prompt},
                         ],
                         "stream": False,
-                        "max_tokens": 200,
+                        "max_tokens": 256,
                         "temperature": 0.7,
                         "top_p": 1,
                         "n": 1,
@@ -422,8 +441,13 @@ async def generate_article(payload: ArticleRequest, current_user: User = Depends
                 data = resp.json()
                 article = data["choices"][0]["message"]["content"].strip()
                 return {"result": article}
-            except Exception as exc:
-                last_error = exc
-                await asyncio.sleep(0.5)
-        raise HTTPException(status_code=502, detail="AI service error") from last_error
+            except httpx.HTTPStatusError as exc:
+                logger.error("DeepSeek error %s: %s", exc.response.status_code, exc.response.text)
+                if 400 <= exc.response.status_code < 500:
+                    raise HTTPException(exc.response.status_code, f"LLM returned {exc.response.status_code}")
+            except httpx.RequestError as exc:
+                logger.error("Network error: %s", exc)
+            await asyncio.sleep(delay)
+
+    raise HTTPException(status.HTTP_502_BAD_GATEWAY, "LLM service unavailable after retries")
 
