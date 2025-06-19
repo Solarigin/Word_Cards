@@ -227,6 +227,7 @@ function showSettings() {
         <input id="passwordInput" type="password" class="border p-2 w-full">
       </div>
       <button id="saveSettings" class="border rounded px-4 py-2 shadow bg-blue-500 text-white">Save</button>
+      <button id="deleteAccount" class="border rounded px-4 py-2 shadow bg-red-500 text-white">Delete Account</button>
       <div id="settingsMsg" class="text-green-600"></div>
     </div>`;
   api('/users/me').then(data => {
@@ -255,12 +256,25 @@ function showSettings() {
     try {
       if (username) await api('/users/me', { method: 'PUT', body: { username } });
       if (oldPwd && newPwd) {
+        if (!/^[A-Za-z0-9]{6,}$/.test(newPwd)) {
+          document.getElementById('settingsMsg').textContent = '密码不能为空, 不能含特殊字符且至少6位';
+          return;
+        }
         await api('/users/me/password', { method: 'PUT', body: { old_password: oldPwd, new_password: newPwd } });
         localStorage.removeItem('token');
         window.location.href = 'login.html';
         return;
       }
       document.getElementById('settingsMsg').textContent = 'Saved';
+    } catch {
+      document.getElementById('settingsMsg').textContent = 'Error';
+    }
+  };
+  document.getElementById('deleteAccount').onclick = async () => {
+    if (!confirm('Are you sure you want to delete your account?')) return;
+    try {
+      await api('/users/request_delete', { method: 'POST' });
+      document.getElementById('settingsMsg').textContent = '您的帐号将会在24小时内注销';
     } catch {
       document.getElementById('settingsMsg').textContent = 'Error';
     }

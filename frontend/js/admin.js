@@ -36,6 +36,36 @@ async function loadUsers() {
   }
 }
 
+async function loadDeletions() {
+  try {
+    const data = await api('/admin/deletion_requests');
+    const rows = data.map(r => `<tr>
+      <td class="border px-2">${r.user_id}</td>
+      <td class="border px-2">${r.username}</td>
+      <td class="border px-2">${new Date(r.requested_at).toLocaleString()}</td>
+      <td class="border px-2 text-center"><button data-id="${r.user_id}" class="approve bg-red-500 text-white px-2 rounded">Approve</button></td>
+    </tr>`).join('');
+    document.getElementById('main').innerHTML = `
+      <table class="table-auto w-full bg-white shadow rounded">
+        <thead><tr><th class="border px-2">ID</th><th class="border px-2">User</th><th class="border px-2">Requested</th><th class="border px-2">Actions</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div id="msg" class="text-green-600 mt-2"></div>`;
+    document.querySelectorAll('button.approve').forEach(btn => {
+      btn.onclick = async () => {
+        try {
+          await api(`/admin/deletion_requests/${btn.dataset.id}/approve`, { method: 'POST' });
+          loadDeletions();
+        } catch {
+          document.getElementById('msg').textContent = 'Error';
+        }
+      };
+    });
+  } catch {
+    document.getElementById('main').textContent = 'Failed to load requests';
+  }
+}
+
 function init() {
   if (!localStorage.getItem('token')) {
     window.location.href = 'login.html';
@@ -47,6 +77,7 @@ function init() {
   }
   document.getElementById('logout').onclick = logout;
   document.getElementById('users').onclick = loadUsers;
+  document.getElementById('deletions').onclick = loadDeletions;
   loadUsers();
 }
 

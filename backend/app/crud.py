@@ -2,7 +2,7 @@ from sqlmodel import select
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta, date
 import json
-from .models import User, Word, ReviewLog
+from .models import User, Word, ReviewLog, DeletionRequest
 from .database import get_session
 from .security import get_password_hash, verify_password
 
@@ -131,3 +131,44 @@ def ensure_default_admin():
             session.refresh(admin)
             return admin
     return None
+
+
+def create_deletion_request(user_id: int):
+    with get_session() as session:
+        exists = session.exec(
+            select(DeletionRequest).where(DeletionRequest.user_id == user_id)
+        ).first()
+        if exists:
+            return exists
+        req = DeletionRequest(user_id=user_id)
+        session.add(req)
+        session.commit()
+        session.refresh(req)
+        return req
+
+
+def list_deletion_requests():
+    with get_session() as session:
+        return session.exec(select(DeletionRequest)).all()
+
+
+def delete_user(user_id: int):
+    with get_session() as session:
+        user = session.get(User, user_id)
+        if not user:
+            return False
+        session.query(ReviewLog).filter(ReviewLog.user_id == user_id).delete()
+        session.query(DeletionRequest).filter(DeletionRequest.user_id == user_id).delete()
+        session.delete(user)
+        session.commit()
+
+        # remove from users.json if present
+        try:
+            with open("users.json", "r", encoding="utf-8") as f:
+                data = json.load(f)
+        except FileNotFoundError:
+            data = []
+        data = [u for u in data if u.get("id") != user_id]
+        with open("users.json", "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        return True
