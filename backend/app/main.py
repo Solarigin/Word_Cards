@@ -25,6 +25,7 @@ from .schemas import (
     UserUpdate,
     PasswordUpdate,
     TranslationRequest,
+    ArticleRequest,
 )
 from . import crud, security
 from .security import create_access_token, decode_token
@@ -347,4 +348,75 @@ async def translate(payload: TranslationRequest):
                 last_error = exc
                 await asyncio.sleep(0.5)
         raise HTTPException(status_code=502, detail="Translation service error") from last_error
+
+
+@app.post("/favorites/{word_id}")
+def add_fav(word_id: int, current_user: User = Depends(get_current_user)):
+    crud.add_favorite(current_user.id, word_id)
+    return {"status": "ok"}
+
+
+@app.delete("/favorites/{word_id}")
+def remove_fav(word_id: int, current_user: User = Depends(get_current_user)):
+    ok = crud.remove_favorite(current_user.id, word_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Not found")
+    return {"status": "ok"}
+
+
+@app.get("/favorites", response_model=List[WordOut])
+def list_fav(current_user: User = Depends(get_current_user)):
+    words = crud.list_favorites(current_user.id)
+    result = []
+    for w in words:
+        result.append(
+            WordOut(
+                id=w.id,
+                word=w.word,
+                translations=json.loads(w.translations),
+                phrases=json.loads(w.phrases) if w.phrases else [],
+            )
+        )
+    return result
+
+
+@app.post("/generate_article")
+async def generate_article(payload: ArticleRequest, current_user: User = Depends(get_current_user)):
+    with get_session() as session:
+        words = [session.get(Word, wid) for wid in payload.word_ids]
+    words = [w.word for w in words if w]
+    prompt = "请使用以下单词写一段约100字的短文：" + ",".join(words)
+    if not TRANSLATE_API_KEY:
+        return {"result": "API KEY not configured"}
+    async with httpx.AsyncClient() as client:
+        last_error = None
+        for _ in range(3):
+            try:
+                resp = await client.post(
+                    TRANSLATE_API_URL,
+                    headers={
+                        "Authorization": f"Bearer {TRANSLATE_API_KEY}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": "deepseek-ai/DeepSeek-V3",
+                        "messages": [
+                            {"role": "user", "content": prompt},
+                        ],
+                        "stream": False,
+                        "max_tokens": 200,
+                        "temperature": 0.7,
+                        "top_p": 1,
+                        "n": 1,
+                        "response_format": {"type": "text"},
+                    },
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                article = data["choices"][0]["message"]["content"].strip()
+                return {"result": article}
+            except Exception as exc:
+                last_error = exc
+                await asyncio.sleep(0.5)
+        raise HTTPException(status_code=502, detail="AI service error") from last_error
 
