@@ -13,10 +13,6 @@ dist
 dist-ssr
 *.local
 
-# 忽略自定义词书数据文件
-# 我自己添加的
-wordbooks/wordBook_CET4.json
-
 # 编辑器和 IDE 配置
 .vscode/*
 !.vscode/extensions.json
