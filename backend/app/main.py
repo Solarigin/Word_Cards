@@ -52,6 +52,10 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 TRANSLATE_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
 TRANSLATE_API_KEY = os.environ.get("TRANSLATE_API_KEY")
 
+# OpenAI API configuration used for article generation.
+OPENAI_API_URL = "https://api.openai.com/v1/chat/completions"
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
+
 init_db()
 
 # import words from json on first run
@@ -393,20 +397,20 @@ async def generate_article(payload: ArticleRequest, current_user: User = Depends
         words = [session.get(Word, wid) for wid in payload.word_ids]
     words = [w.word for w in words if w]
     prompt = "请使用以下单词写一段约100字的短文：" + ",".join(words)
-    if not TRANSLATE_API_KEY:
+    if not OPENAI_API_KEY:
         return {"result": "API KEY not configured"}
     async with httpx.AsyncClient() as client:
         last_error = None
         for _ in range(3):
             try:
                 resp = await client.post(
-                    TRANSLATE_API_URL,
+                    OPENAI_API_URL,
                     headers={
-                        "Authorization": f"Bearer {TRANSLATE_API_KEY}",
+                        "Authorization": f"Bearer {OPENAI_API_KEY}",
                         "Content-Type": "application/json",
                     },
                     json={
-                        "model": "deepseek-ai/DeepSeek-V3",
+                        "model": "gpt-4o-mini",
                         "messages": [
                             {"role": "user", "content": prompt},
                         ],
@@ -415,7 +419,6 @@ async def generate_article(payload: ArticleRequest, current_user: User = Depends
                         "temperature": 0.7,
                         "top_p": 1,
                         "n": 1,
-                        "response_format": {"type": "text"},
                     },
                 )
                 resp.raise_for_status()
