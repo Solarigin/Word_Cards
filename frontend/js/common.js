@@ -1,5 +1,14 @@
 const API_URL = 'http://localhost:8000';
 
+function escapeHTML(str) {
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 function api(path, options = {}) {
   options.headers = options.headers || {};
   const token = localStorage.getItem('token');

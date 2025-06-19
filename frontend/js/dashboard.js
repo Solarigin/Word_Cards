@@ -86,15 +86,17 @@ function renderStudy() {
     return;
   }
   const w = card.word;
-  const translation = w.translations.map(t => `${t.type || ''} ${t.translation}`).join('<br>');
+  const translation = w.translations
+    .map(t => `${escapeHTML(t.type || '')} ${escapeHTML(t.translation)}`)
+    .join('<br>');
   const phrases = w.phrases && w.phrases.length
     ? '<ul class="list-disc pl-4 space-y-1">' +
-      w.phrases.map(p => `<li>${p.phrase} - ${p.translation}</li>`).join('') +
+      w.phrases.map(p => `<li>${escapeHTML(p.phrase)} - ${escapeHTML(p.translation)}</li>`).join('') +
       '</ul>'
     : '';
   const backNormal = `<div>${translation}${phrases ? '<hr class="my-2">' + phrases : ''}</div>`;
-  const front = card.mode === 'normal' ? w.word : translation;
-  const back = card.mode === 'normal' ? backNormal : w.word;
+  const front = card.mode === 'normal' ? escapeHTML(w.word) : translation;
+  const back = card.mode === 'normal' ? backNormal : escapeHTML(w.word);
   const favKey = w.word.toLowerCase();
   const favText = favorites.has(favKey) ? '已收藏' : '收藏';
   const favClass = favorites.has(favKey) ? 'bg-green-600 text-white' : 'bg-green-200 text-green-800';
@@ -170,7 +172,9 @@ async function showSearch() {
     const slice = data.slice(start, start + PAGE_SIZE);
     const list = slice.map((w, i) => {
       const idx = start + i;
-      return `<li data-i="${idx}" class="p-2 border rounded shadow bg-white cursor-pointer"><span class="text-blue-500 font-semibold">${w.word}</span> <span class="text-gray-600">${w.translations.map(t=>t.translation).join(', ')}</span>${w.ai ? '<div class="text-xs text-gray-500">非本阶段词汇, 使用AI大模型进行解释</div>' : ''}</li>`;
+      const word = escapeHTML(w.word);
+      const trans = w.translations.map(t => escapeHTML(t.translation)).join(', ');
+      return `<li data-i="${idx}" class="p-2 border rounded shadow bg-white cursor-pointer"><span class="text-blue-500 font-semibold">${word}</span> <span class="text-gray-600">${trans}</span>${w.ai ? '<div class="text-xs text-gray-500">非本阶段词汇, 使用AI大模型进行解释</div>' : ''}</li>`;
     }).join('');
     results.innerHTML = list;
     if (total > 1) {
@@ -231,9 +235,9 @@ function showWordModal(w) {
   const favText = isFav ? '已收藏' : '收藏';
   const favClass = isFav ? 'bg-green-600 text-white' : 'bg-green-200 text-green-800';
   content.innerHTML = `
-    <h2 class="text-xl font-bold mb-2">${w.word}</h2>
-    <div>${w.translations.map(t => `<div>${t.type || ''} ${t.translation}</div>`).join('')}</div>
-    ${w.phrases && w.phrases.length ? `<ul class="list-disc pl-4 space-y-1 mt-2">${w.phrases.map(p => `<li>${p.phrase} - ${p.translation}</li>`).join('')}</ul>` : ''}
+    <h2 class="text-xl font-bold mb-2">${escapeHTML(w.word)}</h2>
+    <div>${w.translations.map(t => `<div>${escapeHTML(t.type || '')} ${escapeHTML(t.translation)}</div>`).join('')}</div>
+    ${w.phrases && w.phrases.length ? `<ul class="list-disc pl-4 space-y-1 mt-2">${w.phrases.map(p => `<li>${escapeHTML(p.phrase)} - ${escapeHTML(p.translation)}</li>`).join('')}</ul>` : ''}
     ${w.ai ? '<div class="text-xs text-gray-500 mt-1">非本阶段词汇, 使用AI大模型进行解释</div>' : ''}
     <div class="mt-2 space-x-2">
       <button id="speakBtn" class="border px-2 rounded bg-white shadow">🔊</button>
@@ -293,7 +297,7 @@ async function showFavorites() {
       </div>
     </div>`;
   const data = await api('/favorites');
-  const list = data.map(w => `<label class="flex items-center gap-2"><input type="checkbox" value="${w.id}"><span>${w.word}</span></label>`).join('');
+  const list = data.map(w => `<label class="flex items-center gap-2"><input type="checkbox" value="${w.id}"><span>${escapeHTML(w.word)}</span></label>`).join('');
   document.getElementById('favList').innerHTML = list;
 
   document.getElementById('genArticle').onclick = async () => {
@@ -388,7 +392,7 @@ function showSettings() {
   });
   api('/wordbooks').then(list => {
     const select = document.getElementById('wordBookSelect');
-    select.innerHTML = list.map(n => `<option value="${n}">${n}</option>`).join('');
+    select.innerHTML = list.map(n => `<option value="${escapeHTML(n)}">${escapeHTML(n)}</option>`).join('');
     const current = localStorage.getItem('wordBook');
     if (current) select.value = current;
   });

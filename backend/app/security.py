@@ -3,11 +3,11 @@ from jose import jwt
 from datetime import datetime, timedelta, UTC
 import os
 
-# SECRET_KEY can be configured via environment variable.  It controls the
-# signing key for JWT tokens.  If not set, a default value of "secret" is used
-# which is sufficient for tests and local usage but should be overridden in
-# production.
-SECRET_KEY = os.getenv("SECRET_KEY", "secret")
+# SECRET_KEY controls the signing key for JWT tokens. In production this should
+# be provided via the environment. When unset we generate a random key so that
+# each development run gets a unique value.
+import secrets
+SECRET_KEY = os.getenv("SECRET_KEY") or secrets.token_urlsafe(32)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 120
 

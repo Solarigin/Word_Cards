@@ -43,9 +43,10 @@ app.add_middleware(
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-# Translation API configuration
+# Translation API configuration. Set TRANSLATE_API_KEY in the environment to
+# enable translation features.
 TRANSLATE_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
-TRANSLATE_API_KEY = os.environ.get("TRANSLATE_API_KEY") or "sk-qgcgyorurjbwphwzfdwwqwiyydzhptbaypsaybdzakcxlkjm"
+TRANSLATE_API_KEY = os.environ.get("TRANSLATE_API_KEY")
 
 init_db()
 
