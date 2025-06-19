@@ -272,6 +272,10 @@ function init() {
     window.location.href = 'login.html';
     return;
   }
+  if (localStorage.getItem('role') === 'admin') {
+    window.location.href = 'admin.html';
+    return;
+  }
   document.getElementById('logout').onclick = logout;
   document.getElementById('study').onclick = showStudy;
   document.getElementById('search').onclick = showSearch;
