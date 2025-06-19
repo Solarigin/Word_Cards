@@ -43,3 +43,7 @@ class PasswordUpdate(BaseModel):
 class TranslationRequest(BaseModel):
     text: str
     lang: str
+
+
+class ArticleRequest(BaseModel):
+    word_ids: List[int]

@@ -2,7 +2,7 @@ from sqlmodel import select
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta, date
 import json
-from .models import User, Word, ReviewLog, DeletionRequest
+from .models import User, Word, ReviewLog, DeletionRequest, Favorite
 from .database import get_session
 from .security import get_password_hash, verify_password
 
@@ -172,3 +172,43 @@ def delete_user(user_id: int):
         with open("users.json", "w", encoding="utf-8") as f:
             json.dump(data, f, ensure_ascii=False, indent=2)
         return True
+
+
+def add_favorite(user_id: int, word_id: int):
+    with get_session() as session:
+        exists = session.exec(
+            select(Favorite).where(
+                Favorite.user_id == user_id, Favorite.word_id == word_id
+            )
+        ).first()
+        if exists:
+            return exists
+        fav = Favorite(user_id=user_id, word_id=word_id)
+        session.add(fav)
+        session.commit()
+        session.refresh(fav)
+        return fav
+
+
+def remove_favorite(user_id: int, word_id: int) -> bool:
+    with get_session() as session:
+        fav = session.exec(
+            select(Favorite).where(
+                Favorite.user_id == user_id, Favorite.word_id == word_id
+            )
+        ).first()
+        if not fav:
+            return False
+        session.delete(fav)
+        session.commit()
+        return True
+
+
+def list_favorites(user_id: int):
+    with get_session() as session:
+        statement = (
+            select(Word)
+            .join(Favorite, Favorite.word_id == Word.id)
+            .where(Favorite.user_id == user_id)
+        )
+        return session.exec(statement).all()

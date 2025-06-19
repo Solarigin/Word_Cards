@@ -115,7 +115,6 @@ function renderStudy() {
 }
 
 async function showSearch() {
-  await ensureWordBook();
   const main = document.getElementById('main');
   main.innerHTML = `
     <div class="flex flex-col gap-4 max-w-xl mx-auto">
@@ -135,12 +134,11 @@ async function showSearch() {
   const results = document.getElementById('results');
   let data = [];
   async function search() {
-    const q = input.value.trim().toLowerCase();
+    const q = input.value.trim();
     if(!q) return;
-    data = wordBookData.filter(w =>
-      w.word.toLowerCase().includes(q) ||
-      (w.translations.some(t => t.translation.includes(q)))
-    );
+    try {
+      data = await api('/search?q=' + encodeURIComponent(q));
+    } catch { data = []; }
     if (data.length === 0) {
       try {
         const res = await api('/translate', { method: 'POST', body: { text: q, lang: 'zh' } });
@@ -170,15 +168,59 @@ function showWordModal(w) {
     <div>${w.translations.map(t => `<div>${t.type || ''} ${t.translation}</div>`).join('')}</div>
     ${w.phrases && w.phrases.length ? `<ul class="list-disc pl-4 space-y-1 mt-2">${w.phrases.map(p => `<li>${p.phrase} - ${p.translation}</li>`).join('')}</ul>` : ''}
     ${w.ai ? '<div class="text-xs text-gray-500 mt-1">非本阶段词汇, 使用AI大模型进行解释</div>' : ''}
-    <button id="speakBtn" class="mt-2 border px-2 rounded bg-white shadow">🔊</button>
+    <div class="mt-2 space-x-2">
+      <button id="speakBtn" class="border px-2 rounded bg-white shadow">🔊</button>
+      ${w.id ? '<button id="favBtn" class="border px-2 rounded bg-white shadow">收藏</button>' : ''}
+    </div>
   `;
   modal.classList.remove('hidden');
   document.getElementById('speakBtn').onclick = () => speak(w.word);
+  const fav = document.getElementById('favBtn');
+  if (fav) fav.onclick = async () => {
+    try { await api('/favorites/' + w.id, { method: 'POST' }); alert('已收藏'); } catch {}
+  };
   document.getElementById('closeModal').onclick = () => modal.classList.add('hidden');
 }
 
 function speak(text) {
   window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
+
+async function showFavorites() {
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div class="flex flex-col gap-2 max-w-xl mx-auto">
+      <div id="favList" class="space-y-2"></div>
+      <button id="genArticle" class="border rounded px-4 py-2 bg-blue-500 text-white">AI生成文章</button>
+    </div>
+    <div id="modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden">
+      <div class="bg-white p-4 rounded shadow max-w-md w-full">
+        <button id="closeModal" class="float-right">✖</button>
+        <div id="articleContent" class="mt-2 whitespace-pre-wrap"></div>
+      </div>
+    </div>`;
+  const data = await api('/favorites');
+  const list = data.map(w => `<label class="flex items-center gap-2"><input type="checkbox" value="${w.id}"><span>${w.word}</span></label>`).join('');
+  document.getElementById('favList').innerHTML = list;
+
+  document.getElementById('genArticle').onclick = async () => {
+    const ids = Array.from(document.querySelectorAll('#favList input:checked')).map(cb => parseInt(cb.value, 10));
+    if(!ids.length) return;
+    let res;
+    try { res = await api('/generate_article', { method: 'POST', body: { word_ids: ids } }); } catch { return; }
+    const text = res.result;
+    const modal = document.getElementById('modal');
+    const content = document.getElementById('articleContent');
+    modal.classList.remove('hidden');
+    content.textContent = '';
+    let i = 0;
+    const timer = setInterval(() => {
+      content.textContent += text[i] || '';
+      i++;
+      if (i >= text.length) clearInterval(timer);
+    }, 50);
+    document.getElementById('closeModal').onclick = () => { modal.classList.add('hidden'); clearInterval(timer); };
+  };
 }
 
 async function continueStudy(n) {
@@ -296,6 +338,7 @@ function init() {
   document.getElementById('translate').onclick = () => {
     window.location.href = 'translate.html';
   };
+  document.getElementById('favorites').onclick = showFavorites;
   document.getElementById('stats').onclick = showStats;
   document.getElementById('settings').onclick = showSettings;
   document.addEventListener('keydown', handleKey);
