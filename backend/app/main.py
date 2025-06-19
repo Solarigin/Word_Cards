@@ -271,6 +271,36 @@ def change_password(info: PasswordUpdate, current_user: User = Depends(get_curre
     return {"status": "ok"}
 
 
+@app.post("/users/request_delete")
+def request_delete(current_user: User = Depends(get_current_user)):
+    crud.create_deletion_request(current_user.id)
+    return {"status": "ok"}
+
+
+@app.get("/admin/deletion_requests")
+def admin_list_deletions(current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    reqs = crud.list_deletion_requests()
+    result = []
+    with get_session() as session:
+        for r in reqs:
+            user = session.get(User, r.user_id)
+            if user:
+                result.append({"user_id": user.id, "username": user.username, "requested_at": r.requested_at.isoformat()})
+    return result
+
+
+@app.post("/admin/deletion_requests/{user_id}/approve")
+def admin_approve_delete(user_id: int, current_user: User = Depends(get_current_user)):
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+    ok = crud.delete_user(user_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"status": "deleted"}
+
+
 # Simple translation endpoint using external API
 @app.post("/translate")
 async def translate(payload: TranslationRequest):

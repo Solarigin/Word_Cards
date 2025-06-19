@@ -1,3 +1,5 @@
+import os, sys
+sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from fastapi.testclient import TestClient
 from backend.app.main import app
 
@@ -84,3 +86,32 @@ def test_daily_limit_respected():
     r_stats = client.get("/stats/overview", params={"limit": 1}, headers=headers)
     assert r_stats.status_code == 200
     assert r_stats.json()["due"] == 0
+
+
+def test_account_deletion_flow():
+    r = client.post("/auth/register", json={"username": "deluser", "password": "pwd"})
+    if r.status_code == 400:
+        r = client.post("/auth/login", data={"username": "deluser", "password": "pwd"})
+    token = r.json()["access_token"]
+    headers = auth_header(token)
+
+    r_req = client.post("/users/request_delete", headers=headers)
+    assert r_req.status_code == 200
+
+    admin_token = client.post("/auth/login", data={"username": "Admin", "password": "88888888"}).json()["access_token"]
+    admin_headers = auth_header(admin_token)
+
+    r_list = client.get("/admin/deletion_requests", headers=admin_headers)
+    assert r_list.status_code == 200
+    data = r_list.json()
+    user_id = None
+    for d in data:
+        if d["username"] == "deluser":
+            user_id = d["user_id"]
+    assert user_id is not None
+
+    r_appr = client.post(f"/admin/deletion_requests/{user_id}/approve", headers=admin_headers)
+    assert r_appr.status_code == 200
+
+    r_login = client.post("/auth/login", data={"username": "deluser", "password": "pwd"})
+    assert r_login.status_code == 401

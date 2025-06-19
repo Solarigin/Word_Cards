@@ -22,3 +22,8 @@ class ReviewLog(SQLModel, table=True):
     last_interval: int
     next_review: date
     reviewed_at: datetime = Field(default_factory=datetime.utcnow)
+
+class DeletionRequest(SQLModel, table=True):
+    id: Optional[int] = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id")
+    requested_at: datetime = Field(default_factory=datetime.utcnow)
