@@ -6,3 +6,4 @@ pytest
 python-jose[cryptography]
 httpx<0.27
 python-multipart
+python-dotenv

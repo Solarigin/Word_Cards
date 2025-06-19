@@ -5,9 +5,9 @@ This project contains a small FastAPI backend and tests for a vocabulary learnin
 ## Configuration
 
 - `SECRET_KEY` – signing key used for JWT tokens. If the environment variable is unset the application defaults to `"secret"`. Override it in production for better security.
-- `TRANSLATE_API_KEY` – API key for the external translation service used by the `/translate` endpoint.
+- `TRANSLATE_API_KEY` – API key for the external translation service used by the `/translate` and `/generate_article` endpoints. These features will return an error if the key is not provided.
 
-Create a `.env` file in the project root to provide these variables during development. A template is available as `.env.example`:
+Create a `.env` file in the project root to provide these variables during development. A template is available as `.env.example`. The file should define `SECRET_KEY` and `TRANSLATE_API_KEY`:
 
 ```bash
 cp .env.example .env
