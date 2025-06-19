@@ -4,12 +4,28 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Word Cards</title>
-  <script>
-    if (localStorage.getItem('token')) {
-      window.location.href = 'dashboard.html';
-    } else {
-      window.location.href = 'login.html';
+  <script type="module">
+    const token = localStorage.getItem('token');
+    async function go() {
+      if (!token) {
+        window.location.href = 'login.html';
+        return;
+      }
+      try {
+        const res = await fetch('http://localhost:8000/users/me', {
+          headers: { Authorization: 'Bearer ' + token }
+        });
+        if (!res.ok) throw new Error();
+        const user = await res.json();
+        localStorage.setItem('role', user.role);
+        window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
+      } catch {
+        localStorage.removeItem('token');
+        localStorage.removeItem('role');
+        window.location.href = 'login.html';
+      }
     }
+    go();
   </script>
 </head>
 <body>
