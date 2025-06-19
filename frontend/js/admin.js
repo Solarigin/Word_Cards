@@ -9,8 +9,8 @@ async function loadUsers() {
     const data = await api('/admin/users');
     const rows = data.map(u => `<tr>
       <td class="border px-2">${u.id}</td>
-      <td class="border px-2">${u.username}</td>
-      <td class="border px-2">${u.role}</td>
+      <td class="border px-2">${escapeHTML(u.username)}</td>
+      <td class="border px-2">${escapeHTML(u.role)}</td>
       <td class="border px-2 text-center"><button data-id="${u.id}" class="reset bg-blue-500 text-white px-2 rounded">Reset</button></td>
     </tr>`).join('');
     document.getElementById('main').innerHTML = `
@@ -41,7 +41,7 @@ async function loadDeletions() {
     const data = await api('/admin/deletion_requests');
     const rows = data.map(r => `<tr>
       <td class="border px-2">${r.user_id}</td>
-      <td class="border px-2">${r.username}</td>
+      <td class="border px-2">${escapeHTML(r.username)}</td>
       <td class="border px-2">${new Date(r.requested_at).toLocaleString()}</td>
       <td class="border px-2 text-center"><button data-id="${r.user_id}" class="approve bg-red-500 text-white px-2 rounded">Approve</button></td>
     </tr>`).join('');
