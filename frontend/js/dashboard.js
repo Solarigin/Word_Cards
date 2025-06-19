@@ -90,7 +90,7 @@ function renderStudy() {
     .map(t => `${escapeHTML(t.type || '')} ${escapeHTML(t.translation)}`)
     .join('<br>');
   const phrases = w.phrases && w.phrases.length
-    ? '<ul class="list-disc pl-4 space-y-1">' +
+    ? '<ul class="list-disc pl-4 space-y-1 max-h-40 overflow-y-auto">' +
       w.phrases.map(p => `<li>${escapeHTML(p.phrase)} - ${escapeHTML(p.translation)}</li>`).join('') +
       '</ul>'
     : '';
@@ -237,7 +237,7 @@ function showWordModal(w) {
   content.innerHTML = `
     <h2 class="text-xl font-bold mb-2">${escapeHTML(w.word)}</h2>
     <div>${w.translations.map(t => `<div>${escapeHTML(t.type || '')} ${escapeHTML(t.translation)}</div>`).join('')}</div>
-    ${w.phrases && w.phrases.length ? `<ul class="list-disc pl-4 space-y-1 mt-2">${w.phrases.map(p => `<li>${escapeHTML(p.phrase)} - ${escapeHTML(p.translation)}</li>`).join('')}</ul>` : ''}
+    ${w.phrases && w.phrases.length ? `<ul class="list-disc pl-4 space-y-1 mt-2 max-h-40 overflow-y-auto">${w.phrases.map(p => `<li>${escapeHTML(p.phrase)} - ${escapeHTML(p.translation)}</li>`).join('')}</ul>` : ''}
     ${w.ai ? '<div class="text-xs text-gray-500 mt-1">非本阶段词汇, 使用AI大模型进行解释</div>' : ''}
     <div class="mt-2 space-x-2">
       <button id="speakBtn" class="border px-2 rounded bg-white shadow">🔊</button>
