@@ -10,7 +10,6 @@ let wordBookData = [];
 let progress = 0;
 
 function handleKey(e) {
-  if (!showBack) return;
   if (['1', '2', '3'].includes(e.key)) {
     const btn = document.querySelector(`#buttons button[data-q="${parseInt(e.key, 10) - 1}"]`);
     if (btn) btn.click();
@@ -78,14 +77,18 @@ function renderStudy() {
   }
   const w = card.word;
   const translation = w.translations.map(t => `${t.type || ''} ${t.translation}`).join('<br>');
-  const phrases = w.phrases ? w.phrases.map(p => `${p.phrase} - ${p.translation}`).join('<br>') : '';
+  const phrases = w.phrases && w.phrases.length
+    ? '<ul class="list-disc pl-4 space-y-1">' +
+      w.phrases.map(p => `<li>${p.phrase} - ${p.translation}</li>`).join('') +
+      '</ul>'
+    : '';
   const backNormal = `<div>${translation}${phrases ? '<hr class="my-2">' + phrases : ''}</div>`;
   const front = card.mode === 'normal' ? w.word : translation;
   const back = card.mode === 'normal' ? backNormal : w.word;
   main.innerHTML = `
     <div class="flex flex-col items-center gap-4 min-h-screen">
       <div id="card" class="border p-4 text-center w-80 h-48 overflow-y-auto flex items-center justify-center cursor-pointer bg-white shadow rounded">${showBack ? back : front}</div>
-      <div id="buttons" class="flex gap-2 ${showBack ? '' : 'hidden'} fixed bottom-4 left-1/2 -translate-x-1/2">
+      <div id="buttons" class="flex gap-2 fixed bottom-4 left-1/2 -translate-x-1/2">
         ${['不认识','模糊','认识'].map((t,i) => {
           const colors = ['bg-red-500 text-white','bg-yellow-400','bg-green-500 text-white'];
           return `<button class="border rounded px-2 shadow ${colors[i]}" data-q="${i}">${t}</button>`;
@@ -131,14 +134,22 @@ async function showSearch() {
   const input = document.getElementById('q');
   const results = document.getElementById('results');
   let data = [];
-  function search() {
+  async function search() {
     const q = input.value.trim().toLowerCase();
     if(!q) return;
     data = wordBookData.filter(w =>
       w.word.toLowerCase().includes(q) ||
       (w.translations.some(t => t.translation.includes(q)))
     );
-    const list = data.map((w,i) => `<li data-i="${i}" class="p-2 border rounded shadow bg-white cursor-pointer"><span class="text-blue-500 font-semibold">${w.word}</span> <span class="text-gray-600">${w.translations.map(t=>t.translation).join(', ')}</span></li>`).join('');
+    if (data.length === 0) {
+      try {
+        const res = await api('/translate', { method: 'POST', body: { text: q, lang: 'zh' } });
+        data = [{ word: q, translations: [{ translation: res.result }], phrases: [], ai: true }];
+      } catch {
+        data = [{ word: q, translations: [{ translation: 'N/A' }], phrases: [], ai: true }];
+      }
+    }
+    const list = data.map((w,i) => `<li data-i="${i}" class="p-2 border rounded shadow bg-white cursor-pointer"><span class="text-blue-500 font-semibold">${w.word}</span> <span class="text-gray-600">${w.translations.map(t=>t.translation).join(', ')}</span>${w.ai ? '<div class="text-xs text-gray-500">非本阶段词汇, 使用AI大模型进行解释</div>' : ''}</li>`).join('');
     results.innerHTML = list;
   }
   document.getElementById('go').onclick = search;
@@ -157,7 +168,8 @@ function showWordModal(w) {
   content.innerHTML = `
     <h2 class="text-xl font-bold mb-2">${w.word}</h2>
     <div>${w.translations.map(t => `<div>${t.type || ''} ${t.translation}</div>`).join('')}</div>
-    ${w.phrases && w.phrases.length ? `<div class="mt-2">${w.phrases.map(p => `<div>${p.phrase} - ${p.translation}</div>`).join('')}</div>` : ''}
+    ${w.phrases && w.phrases.length ? `<ul class="list-disc pl-4 space-y-1 mt-2">${w.phrases.map(p => `<li>${p.phrase} - ${p.translation}</li>`).join('')}</ul>` : ''}
+    ${w.ai ? '<div class="text-xs text-gray-500 mt-1">非本阶段词汇, 使用AI大模型进行解释</div>' : ''}
     <button id="speakBtn" class="mt-2 border px-2 rounded bg-white shadow">🔊</button>
   `;
   modal.classList.remove('hidden');
