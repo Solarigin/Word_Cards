@@ -1,5 +1,6 @@
 from sqlmodel import select
 from sqlalchemy.exc import IntegrityError
+from sqlalchemy import func
 from datetime import datetime, timedelta, date
 import json
 import os
@@ -87,12 +88,22 @@ def record_review(user_id: int, word_id: int, quality: int):
 
 
 def search_words(query: str):
+    """Search words case-insensitively and return ones starting with the query
+    first."""
     q = query.lower()
     with get_session() as session:
-        statement = select(Word).where(
-            (Word.word.contains(q)) | (Word.translations.contains(q))
+        starts = select(Word).where(func.lower(Word.word).like(f"{q}%"))
+        others = (
+            select(Word)
+            .where(
+                (func.lower(Word.word).contains(q))
+                | (func.lower(Word.translations).contains(q))
+            )
+            .where(func.lower(Word.word).not_like(f"{q}%"))
         )
-        return session.exec(statement).all()
+        words = session.exec(starts).all()
+        words += session.exec(others).all()
+        return words
 
 
 def get_review_logs(user_id: int):
