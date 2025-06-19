@@ -160,17 +160,28 @@ async function showSearch() {
   const results = document.getElementById('results');
   let data = [];
   async function search() {
-    const q = input.value.trim();
-    if(!q) return;
+    const qRaw = input.value.trim();
+    if(!qRaw) return;
+    const q = qRaw.toLowerCase();
     try {
       data = await api('/search?q=' + encodeURIComponent(q));
     } catch { data = []; }
+    await ensureWordBook();
+    const local = wordBookData.filter(w =>
+      w.word.toLowerCase().includes(q) ||
+      (w.translations && w.translations.some(t => t.translation.includes(q)))
+    );
+    for (const w of local) {
+      if(!data.some(d => d.word.toLowerCase() === w.word.toLowerCase())) {
+        data.push(w);
+      }
+    }
     if (data.length === 0) {
       try {
-        const res = await api('/translate', { method: 'POST', body: { text: q, lang: 'zh' } });
-        data = [{ word: q, translations: [{ translation: res.result }], phrases: [], ai: true }];
+        const res = await api('/translate', { method: 'POST', body: { text: qRaw, lang: 'zh' } });
+        data = [{ word: qRaw, translations: [{ translation: res.result }], phrases: [], ai: true }];
       } catch {
-        data = [{ word: q, translations: [{ translation: 'N/A' }], phrases: [], ai: true }];
+        data = [{ word: qRaw, translations: [{ translation: 'N/A' }], phrases: [], ai: true }];
       }
     }
     const list = data.map((w,i) => `<li data-i="${i}" class="p-2 border rounded shadow bg-white cursor-pointer"><span class="text-blue-500 font-semibold">${w.word}</span> <span class="text-gray-600">${w.translations.map(t=>t.translation).join(', ')}</span>${w.ai ? '<div class="text-xs text-gray-500">非本阶段词汇, 使用AI大模型进行解释</div>' : ''}</li>`).join('');
