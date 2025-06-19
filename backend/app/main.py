@@ -6,6 +6,7 @@ from datetime import datetime
 from jose import JWTError
 import json
 import os
+from dotenv import load_dotenv
 import csv
 import io
 import asyncio
@@ -29,6 +30,9 @@ from .schemas import (
 )
 from . import crud, security
 from .security import create_access_token, decode_token
+
+# Load variables from a local .env file if present
+load_dotenv()
 
 app = FastAPI(title="Word Cards")
 
