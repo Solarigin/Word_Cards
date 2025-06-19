@@ -257,6 +257,12 @@ async function showFavorites() {
       <div class="bg-white p-4 rounded shadow max-w-md w-full">
         <button id="closeModal" class="float-right">✖</button>
         <div id="articleContent" class="mt-2 whitespace-pre-wrap"></div>
+        <div id="articleLoading" class="hidden flex justify-center my-2">
+          <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+          </svg>
+        </div>
       </div>
     </div>`;
   const data = await api('/favorites');
@@ -265,22 +271,39 @@ async function showFavorites() {
 
   document.getElementById('genArticle').onclick = async () => {
     const ids = Array.from(document.querySelectorAll('#favList input:checked')).map(cb => parseInt(cb.value, 10));
-    if(!ids.length) return;
-    let res;
-    try { res = await api('/generate_article', { method: 'POST', body: { word_ids: ids } }); }
-    catch (err) { alert('生成失败: ' + err.message); return; }
-    const text = res.result;
+    if (!ids.length) return;
+    const btn = document.getElementById('genArticle');
     const modal = document.getElementById('modal');
     const content = document.getElementById('articleContent');
-    modal.classList.remove('hidden');
+    const loading = document.getElementById('articleLoading');
+    btn.disabled = true;
     content.textContent = '';
-    let i = 0;
-    const timer = setInterval(() => {
-      content.textContent += text[i] || '';
-      i++;
-      if (i >= text.length) clearInterval(timer);
-    }, 50);
-    document.getElementById('closeModal').onclick = () => { modal.classList.add('hidden'); clearInterval(timer); };
+    modal.classList.remove('hidden');
+    loading.classList.remove('hidden');
+    try {
+      const res = await api('/generate_article', { method: 'POST', body: { word_ids: ids } });
+      const text = res.result;
+      loading.classList.add('hidden');
+      let i = 0;
+      const timer = setInterval(() => {
+        content.textContent += text[i] || '';
+        i++;
+        if (i >= text.length) clearInterval(timer);
+      }, 50);
+      document.getElementById('closeModal').onclick = () => { modal.classList.add('hidden'); clearInterval(timer); };
+    } catch (err) {
+      console.error(err);
+      loading.classList.add('hidden');
+      modal.classList.add('hidden');
+      let msg = '生成失败';
+      try {
+        const data = JSON.parse(err.message);
+        if (data.detail) msg = data.detail;
+      } catch {}
+      alert(msg);
+    } finally {
+      btn.disabled = false;
+    }
   };
 }
 
