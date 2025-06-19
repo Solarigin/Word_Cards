@@ -2,3 +2,4 @@ wordcards.db
 __pycache__/
 **/__pycache__/
 users.json
+wordbooks/wordBook_CET4.json
