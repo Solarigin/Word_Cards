@@ -8,6 +8,15 @@ let currentBook = localStorage.getItem('wordBook') || 'TEST';
 let loadedBook = null;
 let wordBookData = [];
 let progress = 0;
+let favorites = new Map();
+
+async function refreshFavorites() {
+  try {
+    const data = await api('/favorites');
+    favorites.clear();
+    data.forEach(w => favorites.set(w.word.toLowerCase(), w.id));
+  } catch {}
+}
 
 function handleKey(e) {
   if (['1', '2', '3'].includes(e.key)) {
@@ -39,6 +48,7 @@ function logout() {
 
 async function showStudy() {
   dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
+  await refreshFavorites();
   await ensureWordBook();
   progress = parseInt(localStorage.getItem('progress_' + currentBook), 10) || 0;
   if (localStorage.getItem('study_done') === 'true') {
@@ -85,9 +95,15 @@ function renderStudy() {
   const backNormal = `<div>${translation}${phrases ? '<hr class="my-2">' + phrases : ''}</div>`;
   const front = card.mode === 'normal' ? w.word : translation;
   const back = card.mode === 'normal' ? backNormal : w.word;
+  const favKey = w.word.toLowerCase();
+  const favText = favorites.has(favKey) ? '已收藏' : '收藏';
+  const favClass = favorites.has(favKey) ? 'bg-green-600 text-white' : 'bg-green-200 text-green-800';
   main.innerHTML = `
     <div class="flex flex-col items-center gap-4 min-h-screen">
-      <div id="card" class="border p-4 text-center w-80 h-48 overflow-y-auto flex items-center justify-center cursor-pointer bg-white shadow rounded">${showBack ? back : front}</div>
+      <div class="relative">
+        <div id="card" class="border p-4 text-center w-80 h-48 overflow-y-auto flex items-center justify-center cursor-pointer bg-white shadow rounded">${showBack ? back : front}</div>
+        <button id="favStudyBtn" class="absolute top-2 right-2 border px-2 rounded ${favClass}">${favText}</button>
+      </div>
       <div id="buttons" class="flex gap-2 fixed bottom-4 left-1/2 -translate-x-1/2">
         ${['不认识','模糊','认识'].map((t,i) => {
           const colors = ['bg-red-500 text-white','bg-yellow-400','bg-green-500 text-white'];
@@ -96,6 +112,16 @@ function renderStudy() {
       </div>
     </div>`;
   document.getElementById('card').onclick = () => { showBack = !showBack; renderStudy(); };
+  const favBtn = document.getElementById('favStudyBtn');
+  favBtn.onclick = async () => {
+    if (favorites.has(favKey)) return;
+    const added = await addFavoriteByWord(w.word);
+    if (added) {
+      favBtn.textContent = '已收藏';
+      favBtn.classList.remove('bg-green-200', 'text-green-800');
+      favBtn.classList.add('bg-green-600', 'text-white');
+    }
+  };
   document.querySelectorAll('#buttons button').forEach(btn => {
     btn.onclick = () => {
       const q = parseInt(btn.dataset.q, 10);
@@ -163,6 +189,9 @@ async function showSearch() {
 function showWordModal(w) {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
+  const isFav = favorites.has(w.word.toLowerCase());
+  const favText = isFav ? '已收藏' : '收藏';
+  const favClass = isFav ? 'bg-green-600 text-white' : 'bg-green-200 text-green-800';
   content.innerHTML = `
     <h2 class="text-xl font-bold mb-2">${w.word}</h2>
     <div>${w.translations.map(t => `<div>${t.type || ''} ${t.translation}</div>`).join('')}</div>
@@ -170,16 +199,36 @@ function showWordModal(w) {
     ${w.ai ? '<div class="text-xs text-gray-500 mt-1">非本阶段词汇, 使用AI大模型进行解释</div>' : ''}
     <div class="mt-2 space-x-2">
       <button id="speakBtn" class="border px-2 rounded bg-white shadow">🔊</button>
-      ${w.id ? '<button id="favBtn" class="border px-2 rounded bg-white shadow">收藏</button>' : ''}
+      ${w.id ? `<button id="favBtn" class="border px-2 rounded ${favClass}">${favText}</button>` : ''}
     </div>
   `;
   modal.classList.remove('hidden');
   document.getElementById('speakBtn').onclick = () => speak(w.word);
   const fav = document.getElementById('favBtn');
   if (fav) fav.onclick = async () => {
-    try { await api('/favorites/' + w.id, { method: 'POST' }); alert('已收藏'); } catch {}
+    if (favorites.has(w.word.toLowerCase())) return;
+    try {
+      await api('/favorites/' + w.id, { method: 'POST' });
+      favorites.set(w.word.toLowerCase(), w.id);
+      fav.textContent = '已收藏';
+      fav.classList.remove('bg-green-200', 'text-green-800');
+      fav.classList.add('bg-green-600', 'text-white');
+    } catch {}
   };
   document.getElementById('closeModal').onclick = () => modal.classList.add('hidden');
+}
+
+async function addFavoriteByWord(word) {
+  try {
+    const res = await api('/search?q=' + encodeURIComponent(word));
+    const item = res.find(w => w.word.toLowerCase() === word.toLowerCase());
+    if (item) {
+      await api('/favorites/' + item.id, { method: 'POST' });
+      favorites.set(word.toLowerCase(), item.id);
+      return true;
+    }
+  } catch {}
+  return false;
 }
 
 function speak(text) {
@@ -207,7 +256,8 @@ async function showFavorites() {
     const ids = Array.from(document.querySelectorAll('#favList input:checked')).map(cb => parseInt(cb.value, 10));
     if(!ids.length) return;
     let res;
-    try { res = await api('/generate_article', { method: 'POST', body: { word_ids: ids } }); } catch { return; }
+    try { res = await api('/generate_article', { method: 'POST', body: { word_ids: ids } }); }
+    catch (err) { alert('生成失败: ' + err.message); return; }
     const text = res.result;
     const modal = document.getElementById('modal');
     const content = document.getElementById('articleContent');
@@ -332,6 +382,7 @@ function init() {
     window.location.href = 'admin.html';
     return;
   }
+  refreshFavorites();
   document.getElementById('logout').onclick = logout;
   document.getElementById('study').onclick = showStudy;
   document.getElementById('search').onclick = showSearch;
