@@ -2,6 +2,7 @@ from sqlmodel import select
 from sqlalchemy.exc import IntegrityError
 from datetime import datetime, timedelta, date
 import json
+import os
 from .models import User, Word, ReviewLog, DeletionRequest, Favorite
 from .database import get_session
 from .security import get_password_hash, verify_password
@@ -212,3 +213,36 @@ def list_favorites(user_id: int):
             .where(Favorite.user_id == user_id)
         )
         return session.exec(statement).all()
+
+
+def sync_wordbooks(directory: str):
+    """Add any words found in *directory* that are missing from the database."""
+    if not directory or not os.path.exists(directory):
+        return
+
+    with get_session() as session:
+        existing = {
+            w.word.lower(): w.id for w in session.exec(select(Word)).all()
+        }
+
+        for fn in os.listdir(directory):
+            if not fn.startswith("wordBook_") or not fn.endswith(".json"):
+                continue
+            path = os.path.join(directory, fn)
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+            except Exception:
+                continue
+            for w in data:
+                key = w.get("word", "").lower()
+                if not key or key in existing:
+                    continue
+                word = Word(
+                    word=w["word"],
+                    translations=json.dumps(w.get("translations", []), ensure_ascii=False),
+                    phrases=json.dumps(w.get("phrases", []), ensure_ascii=False),
+                )
+                session.add(word)
+                existing[key] = True
+        session.commit()

@@ -75,6 +75,8 @@ with get_session() as session:
 
     # ensure default admin account exists
     crud.ensure_default_admin()
+    # sync database with word books so new words get IDs
+    crud.sync_wordbooks(WORDBOOK_DIR)
 
 @app.post("/auth/register", response_model=Token)
 def register(user: UserCreate):

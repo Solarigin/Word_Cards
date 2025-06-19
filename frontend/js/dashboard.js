@@ -149,6 +149,7 @@ async function showSearch() {
         <button id="go" class="border rounded px-4 py-2 shadow bg-white hover:bg-gray-100">Search</button>
       </div>
       <ul id="results" class="space-y-2"></ul>
+      <div id="pagination" class="flex gap-2 justify-center"></div>
     </div>
     <div id="modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden">
       <div class="bg-white p-4 rounded shadow max-w-md w-full">
@@ -158,7 +159,26 @@ async function showSearch() {
     </div>`;
   const input = document.getElementById('q');
   const results = document.getElementById('results');
+  const pagination = document.getElementById('pagination');
   let data = [];
+  let page = 1;
+  const PAGE_SIZE = 10;
+
+  function render() {
+    const total = Math.ceil(data.length / PAGE_SIZE);
+    const start = (page - 1) * PAGE_SIZE;
+    const slice = data.slice(start, start + PAGE_SIZE);
+    const list = slice.map((w, i) => {
+      const idx = start + i;
+      return `<li data-i="${idx}" class="p-2 border rounded shadow bg-white cursor-pointer"><span class="text-blue-500 font-semibold">${w.word}</span> <span class="text-gray-600">${w.translations.map(t=>t.translation).join(', ')}</span>${w.ai ? '<div class="text-xs text-gray-500">非本阶段词汇, 使用AI大模型进行解释</div>' : ''}</li>`;
+    }).join('');
+    results.innerHTML = list;
+    if (total > 1) {
+      pagination.innerHTML = `<button id="prevPage" ${page===1?'disabled':''} class="border rounded px-2 bg-white shadow">上一页</button><span>${page}/${total}</span><button id="nextPage" ${page===total?'disabled':''} class="border rounded px-2 bg-white shadow">下一页</button>`;
+    } else {
+      pagination.innerHTML = '';
+    }
+  }
   async function search() {
     const qRaw = input.value.trim();
     if(!qRaw) return;
@@ -184,11 +204,18 @@ async function showSearch() {
         data = [{ word: qRaw, translations: [{ translation: 'N/A' }], phrases: [], ai: true }];
       }
     }
-    const list = data.map((w,i) => `<li data-i="${i}" class="p-2 border rounded shadow bg-white cursor-pointer"><span class="text-blue-500 font-semibold">${w.word}</span> <span class="text-gray-600">${w.translations.map(t=>t.translation).join(', ')}</span>${w.ai ? '<div class="text-xs text-gray-500">非本阶段词汇, 使用AI大模型进行解释</div>' : ''}</li>`).join('');
-    results.innerHTML = list;
+    page = 1;
+    render();
   }
   document.getElementById('go').onclick = search;
   input.addEventListener('keydown', e => { if(e.key === 'Enter') search(); });
+  pagination.onclick = (e) => {
+    if (e.target.id === 'prevPage' && page > 1) {
+      page--; render();
+    } else if (e.target.id === 'nextPage' && page < Math.ceil(data.length / PAGE_SIZE)) {
+      page++; render();
+    }
+  };
   results.onclick = (e) => {
     const li = e.target.closest('li[data-i]');
     if(!li) return;
