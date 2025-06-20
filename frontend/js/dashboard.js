@@ -103,7 +103,12 @@ function renderStudy() {
   main.innerHTML = `
     <div class="flex flex-col items-center gap-4 min-h-screen">
       <div class="relative">
-        <div id="card" class="flip-card border p-4 text-center w-80 h-48 overflow-y-auto flex items-center justify-center cursor-pointer bg-white shadow rounded ${showBack ? 'flip' : ''}">${showBack ? back : front}</div>
+        <div id="card" class="flip-card w-80 h-48 cursor-pointer">
+          <div class="flip-card-inner ${showBack ? 'flip' : ''}">
+            <div class="flip-card-front border p-4 text-center w-80 h-48 overflow-y-auto flex items-center justify-center bg-white shadow rounded">${front}</div>
+            <div class="flip-card-back border p-4 text-center w-80 h-48 overflow-y-auto flex items-center justify-center bg-white shadow rounded">${back}</div>
+          </div>
+        </div>
         <button id="favStudyBtn" class="absolute top-2 right-2 border px-2 rounded ${favClass}">${favText}</button>
       </div>
       <div id="buttons" class="flex gap-2 fixed bottom-4 left-1/2 -translate-x-1/2">
@@ -113,11 +118,11 @@ function renderStudy() {
         }).join('')}
       </div>
     </div>`;
-  const cardEl = document.getElementById('card');
-  cardEl.onclick = () => {
-    cardEl.classList.toggle('flip');
+  const cardOuter = document.getElementById('card');
+  const cardInner = cardOuter.querySelector('.flip-card-inner');
+  cardOuter.onclick = () => {
+    cardInner.classList.toggle('flip');
     showBack = !showBack;
-    setTimeout(() => { cardEl.innerHTML = showBack ? back : front; }, 300);
   };
   const favBtn = document.getElementById('favStudyBtn');
   favBtn.onclick = async () => {
