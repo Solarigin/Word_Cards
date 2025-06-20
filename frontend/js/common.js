@@ -23,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   async function loadWord() {
     try {
-      const data = await apiRequest('/api/words/review');
+      const data = await apiRequest('/words/review');
       front.textContent = data.word;
       back.textContent = data.translation;
       inner.classList.remove('flipped');

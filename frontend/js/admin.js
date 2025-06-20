@@ -3,7 +3,7 @@ document.addEventListener('DOMContentLoaded', loadUsers);
 async function loadUsers() {
   const tbody = document.getElementById('user-table-body');
   try {
-    const users = await apiRequest('/api/admin/users');
+    const users = await apiRequest('/admin/users');
     tbody.innerHTML = '';
     users.forEach(u => {
       const tr = document.createElement('tr');
@@ -36,13 +36,13 @@ async function loadUsers() {
 async function resetUser(e) {
   if (!confirm('确定重置此用户数据？')) return;
   const id = e.target.dataset.id;
-  await apiRequest(`/api/admin/users/${id}/reset`, { method: 'POST' });
+  await apiRequest(`/admin/users/${id}/reset`, { method: 'POST' });
   alert('已重置');
 }
 
 async function deleteUser(e) {
   if (!confirm('确定删除此用户？')) return;
   const id = e.target.dataset.id;
-  await apiRequest(`/api/admin/users/${id}`, { method: 'DELETE' });
+  await apiRequest(`/admin/users/${id}`, { method: 'DELETE' });
   loadUsers();
 }
