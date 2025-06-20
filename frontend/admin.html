@@ -5,14 +5,15 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Admin Panel</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="bg-gray-50">
-  <nav class="bg-gray-800 text-white px-4 py-3 flex gap-4 items-center">
-    <button id="users" class="hover:text-blue-400">Users</button>
-    <button id="deletions" class="hover:text-blue-400">Deletion Requests</button>
-    <button id="logout" class="ml-auto hover:text-blue-400">Logout</button>
+<body class="bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 min-h-screen animate-fade-in">
+  <nav class="navbar">
+    <button id="users">Users</button>
+    <button id="deletions">Deletion Requests</button>
+    <button id="logout" class="ml-auto">Logout</button>
   </nav>
-  <main id="main" class="p-4"></main>
+  <main id="main" class="p-4 max-w-4xl mx-auto"></main>
   <script src="js/common.js"></script>
   <script src="js/admin.js"></script>
 </body>
