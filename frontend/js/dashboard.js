@@ -101,9 +101,9 @@ function renderStudy() {
   const favText = favorites.has(favKey) ? '已收藏' : '收藏';
   const favClass = favorites.has(favKey) ? 'bg-green-600 text-white' : 'bg-green-200 text-green-800';
   main.innerHTML = `
-    <div class="flex flex-col items-center gap-4 min-h-screen">
+    <div class="flex flex-col items-center gap-4 min-h-screen animate-slide-up">
       <div class="relative">
-        <div id="card" class="flip-card w-80 h-48 cursor-pointer">
+        <div id="card" class="flip-card w-80 h-48 cursor-pointer card-hover">
           <div class="flip-card-inner ${showBack ? 'flip' : ''}">
             <div class="flip-card-front border p-4 text-center w-80 h-48 overflow-y-auto flex items-center justify-center bg-white shadow rounded">${front}</div>
             <div class="flip-card-back border p-4 text-center w-80 h-48 overflow-y-auto flex items-center justify-center bg-white shadow rounded">${back}</div>
@@ -184,7 +184,7 @@ async function showSearch() {
       const idx = start + i;
       const word = escapeHTML(w.word);
       const trans = w.translations.map(t => escapeHTML(t.translation)).join(', ');
-      return `<li data-i="${idx}" class="p-2 border rounded shadow bg-white cursor-pointer"><span class="text-blue-500 font-semibold">${word}</span> <span class="text-gray-600">${trans}</span>${w.ai ? '<div class="text-xs text-gray-500">非本阶段词汇, 使用AI大模型进行解释</div>' : ''}</li>`;
+      return `<li data-i="${idx}" class="p-2 border rounded shadow bg-white cursor-pointer card-hover"><span class="text-blue-500 font-semibold">${word}</span> <span class="text-gray-600">${trans}</span>${w.ai ? '<div class="text-xs text-gray-500">非本阶段词汇, 使用AI大模型进行解释</div>' : ''}</li>`;
     }).join('');
     results.innerHTML = list;
     if (total > 1) {
