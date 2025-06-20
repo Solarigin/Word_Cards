@@ -110,10 +110,10 @@ function renderStudy() {
   main.innerHTML = `
     <div class="flex flex-col items-center gap-4 min-h-screen animate-slide-up">
       <div class="relative">
-        <div id="card" class="flip-card w-80 h-48 cursor-pointer card-hover">
+        <div id="card" class="flip-card w-[70vw] h-[70vh] cursor-pointer card-hover">
           <div class="flip-card-inner ${showBack ? 'flip' : ''}">
-            <div class="flip-card-front border p-4 text-center w-80 h-48 overflow-y-auto flex items-center justify-center bg-white shadow rounded">${front}</div>
-            <div class="flip-card-back border p-4 text-center w-80 h-48 overflow-y-auto flex items-center justify-center bg-white shadow rounded">${back}</div>
+            <div class="flip-card-front border p-4 text-center w-full h-full overflow-y-auto flex items-center justify-center bg-white shadow rounded">${front}</div>
+            <div class="flip-card-back border p-4 text-center w-full h-full overflow-y-auto flex items-center justify-center bg-white shadow rounded">${back}</div>
           </div>
         </div>
         <button id="favStudyBtn" class="absolute top-2 right-2 border px-2 rounded ${favClass}">${favText}</button>
