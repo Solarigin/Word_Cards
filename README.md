@@ -14,6 +14,11 @@ cp .env.example .env
 # then edit .env and set the values
 ```
 
+The backend now uses **MySQL** for data storage. By default it connects to a
+database named `Word_Cards` on `localhost` using the user `root` with the
+password `111111`. You can override this by setting the `DATABASE_URL`
+environment variable.
+
 ## Frontend
 
 The frontend is a simple static site located in `frontend/`.
