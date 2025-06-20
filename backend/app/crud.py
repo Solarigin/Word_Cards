@@ -10,24 +10,13 @@ from .security import get_password_hash, verify_password
 
 
 def create_user(username: str, password: str, role: str = "user"):
-    """Create a new user and persist it to the database and a JSON file."""
+    """Create a new user and persist it to the database."""
     with get_user_session() as session:
         user = User(username=username, hashed_password=get_password_hash(password), role=role)
         session.add(user)
         try:
             session.commit()
             session.refresh(user)
-
-            # also store basic user info in users.json for simple persistence
-            try:
-                with open("users.json", "r", encoding="utf-8") as f:
-                    data = json.load(f)
-            except FileNotFoundError:
-                data = []
-            data.append({"id": user.id, "username": user.username, "role": user.role})
-            with open("users.json", "w", encoding="utf-8") as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-
             return user
         except IntegrityError:
             session.rollback()
@@ -175,16 +164,6 @@ def delete_user(user_id: int):
             return False
         u_session.delete(user)
         u_session.commit()
-
-        # remove from users.json if present
-        try:
-            with open("users.json", "r", encoding="utf-8") as f:
-                data = json.load(f)
-        except FileNotFoundError:
-            data = []
-        data = [u for u in data if u.get("id") != user_id]
-        with open("users.json", "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
         return True
 
 
