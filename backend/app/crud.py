@@ -5,13 +5,13 @@ from datetime import datetime, timedelta, date
 import json
 import os
 from .models import User, Word, ReviewLog, DeletionRequest, Favorite
-from .database import get_session
+from .database import get_session, get_user_session
 from .security import get_password_hash, verify_password
 
 
 def create_user(username: str, password: str, role: str = "user"):
     """Create a new user and persist it to the database and a JSON file."""
-    with get_session() as session:
+    with get_user_session() as session:
         user = User(username=username, hashed_password=get_password_hash(password), role=role)
         session.add(user)
         try:
@@ -35,7 +35,7 @@ def create_user(username: str, password: str, role: str = "user"):
 
 
 def authenticate_user(username: str, password: str):
-    with get_session() as session:
+    with get_user_session() as session:
         statement = select(User).where(User.username == username)
         user = session.exec(statement).first()
         if user and verify_password(password, user.hashed_password):
@@ -113,12 +113,12 @@ def get_review_logs(user_id: int):
 
 
 def list_users():
-    with get_session() as session:
+    with get_user_session() as session:
         return session.exec(select(User)).all()
 
 
 def reset_password(user_id: int, new_password: str):
-    with get_session() as session:
+    with get_user_session() as session:
         user = session.get(User, user_id)
         if not user:
             return None
@@ -130,7 +130,7 @@ def reset_password(user_id: int, new_password: str):
 
 def ensure_default_admin():
     """Create the initial admin account if it doesn't exist."""
-    with get_session() as session:
+    with get_user_session() as session:
         exists = session.exec(select(User).where(User.username == "Admin")).first()
         if not exists:
             admin = User(
@@ -166,13 +166,15 @@ def list_deletion_requests():
 
 def delete_user(user_id: int):
     with get_session() as session:
-        user = session.get(User, user_id)
-        if not user:
-            return False
         session.query(ReviewLog).filter(ReviewLog.user_id == user_id).delete()
         session.query(DeletionRequest).filter(DeletionRequest.user_id == user_id).delete()
-        session.delete(user)
         session.commit()
+    with get_user_session() as u_session:
+        user = u_session.get(User, user_id)
+        if not user:
+            return False
+        u_session.delete(user)
+        u_session.commit()
 
         # remove from users.json if present
         try:

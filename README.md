@@ -38,3 +38,9 @@ PYTHONPATH=. pytest
 # or
 python -m pytest
 ```
+
+## MySQL setup for user data
+
+User accounts are stored in a MySQL table when `MYSQL_ENABLED=1` is set in the
+environment. A SQL script is provided under `sql/Word_Cards.sql`. Run this script
+in MySQL (e.g. via Navicat) to create the required database and `user` table.
