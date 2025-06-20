@@ -3,7 +3,7 @@ from sqlmodel import SQLModel, create_engine, Session
 
 DATABASE_URL = os.environ.get(
     "DATABASE_URL",
-    "mysql+pymysql://root:111111@/Word_Cards?unix_socket=/tmp/mysql.sock",
+    "mysql+pymysql://root:111111@127.0.0.1:3306/Word_Cards?charset=utf8mb4",
 )
 engine = create_engine(DATABASE_URL, echo=False)
 
