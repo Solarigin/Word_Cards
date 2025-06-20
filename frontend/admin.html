@@ -1,19 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Panel</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Admin Panel · Word Cards</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/style.css" />
 </head>
-<body class="bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 min-h-screen animate-fade-in">
-  <nav class="navbar">
-    <button id="users">Users</button>
-    <button id="deletions">Deletion Requests</button>
-    <button id="logout" class="ml-auto">Logout</button>
-  </nav>
-  <main id="main" class="p-4 max-w-4xl mx-auto"></main>
+<body class="flex bg-gray-50 min-h-screen">
+  <aside class="hidden md:flex md:flex-col w-64 bg-white border-r">
+    <div class="flex items-center h-16 px-6 text-xl font-semibold">
+      <span class="text-indigo-600">Word Cards</span>
+    </div>
+    <nav class="flex-1 p-4 space-y-2">
+      <a href="dashboard.html" class="block px-4 py-2 rounded hover:bg-gray-100">Dashboard</a>
+      <a href="index.html" class="block px-4 py-2 rounded hover:bg-gray-100">Study</a>
+      <a href="#" class="block px-4 py-2 rounded hover:bg-gray-100">Search</a>
+      <a href="admin.html" class="block px-4 py-2 rounded bg-indigo-50 text-indigo-600">Admin</a>
+    </nav>
+  </aside>
+
+  <div class="flex-1 flex flex-col">
+    <header class="h-16 flex items-center px-6 bg-white border-b">
+      <h1 class="text-xl font-semibold">Admin Panel</h1>
+    </header>
+
+    <main class="flex-1 p-6 overflow-auto">
+      <div class="max-w-4xl mx-auto">
+        <h2 class="text-2xl font-semibold mb-4">User Management</h2>
+        <table class="min-w-full bg-white rounded-2xl shadow overflow-hidden">
+          <thead class="bg-gray-100">
+            <tr>
+              <th class="px-4 py-2 text-left">ID</th>
+              <th class="px-4 py-2 text-left">Username</th>
+              <th class="px-4 py-2 text-left">Role</th>
+              <th class="px-4 py-2 text-left">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="user-table-body">
+            <tr><td colspan="4" class="text-center py-4">Loading...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </main>
+  </div>
+
   <script src="js/common.js"></script>
   <script src="js/admin.js"></script>
 </body>

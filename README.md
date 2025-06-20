@@ -15,16 +15,11 @@ cp .env.example .env
 ```
 
 ## Frontend
-
 The frontend is a simple static site located in `frontend/`.
-Open `frontend/index.html` in a browser or serve the directory with any HTTP server.
-`index.html` now redirects to either `login.html` or `dashboard.html` depending on
-whether a token exists in `localStorage`.
-It uses Tailwind CSS via CDN and communicates with the FastAPI backend running on
-`http://localhost:8000`.
-The dashboard now includes a Translate button which switches the main view to a
-built-in translator. This view uses the same Tailwind styling and does not leave
-the dashboard page.
+
+Open `frontend/login.html` in a browser or serve the directory with any HTTP server.
+After logging in you can study words on `index.html` or view your progress on `dashboard.html`.
+All pages use Tailwind CSS via CDN and communicate with the FastAPI backend running on `http://localhost:8000`.
 
 Word books are stored as JSON files under the `wordbooks/` directory using the naming
 scheme `wordBook_<NAME>.json`.
