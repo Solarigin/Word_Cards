@@ -103,7 +103,7 @@ function renderStudy() {
   main.innerHTML = `
     <div class="flex flex-col items-center gap-4 min-h-screen">
       <div class="relative">
-        <div id="card" class="border p-4 text-center w-80 h-48 overflow-y-auto flex items-center justify-center cursor-pointer bg-white shadow rounded">${showBack ? back : front}</div>
+        <div id="card" class="flip-card border p-4 text-center w-80 h-48 overflow-y-auto flex items-center justify-center cursor-pointer bg-white shadow rounded ${showBack ? 'flip' : ''}">${showBack ? back : front}</div>
         <button id="favStudyBtn" class="absolute top-2 right-2 border px-2 rounded ${favClass}">${favText}</button>
       </div>
       <div id="buttons" class="flex gap-2 fixed bottom-4 left-1/2 -translate-x-1/2">
@@ -113,7 +113,12 @@ function renderStudy() {
         }).join('')}
       </div>
     </div>`;
-  document.getElementById('card').onclick = () => { showBack = !showBack; renderStudy(); };
+  const cardEl = document.getElementById('card');
+  cardEl.onclick = () => {
+    cardEl.classList.toggle('flip');
+    showBack = !showBack;
+    setTimeout(() => { cardEl.innerHTML = showBack ? back : front; }, 300);
+  };
   const favBtn = document.getElementById('favStudyBtn');
   favBtn.onclick = async () => {
     if (favorites.has(favKey)) return;
@@ -275,6 +280,74 @@ async function addFavoriteByWord(word) {
 
 function speak(text) {
   window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
+
+function showTranslate() {
+  const main = document.getElementById('main');
+  main.innerHTML = `
+    <div class="bg-white rounded shadow p-6 w-full max-w-2xl mx-auto space-y-4">
+      <h1 class="text-2xl font-semibold mb-4 text-center">通用翻译</h1>
+      <label class="block mb-2">
+        <span class="text-gray-700">目标语言：</span>
+        <select id="targetLang" class="mt-1 block w-full rounded-lg border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-300">
+          <option value="en">English</option>
+          <option value="zh">中文</option>
+          <option value="fr">Français</option>
+          <option value="de">Deutsch</option>
+          <option value="es">Español</option>
+          <option value="it">Italiano</option>
+          <option value="ja">日本語</option>
+          <option value="ko">한국어</option>
+          <option value="ru">Русский</option>
+          <option value="pt">Português</option>
+        </select>
+      </label>
+      <label class="block mb-4">
+        <span class="text-gray-700">输入文本：</span>
+        <textarea id="inputText" rows="6" class="mt-1 block w-full rounded-lg border-gray-300 p-2 focus:outline-none focus:ring-2 focus:ring-blue-300" placeholder="在这里输入要翻译的内容…"></textarea>
+      </label>
+      <button id="btnTranslate" class="btn-primary w-full">翻 译</button>
+      <div id="loading" class="hidden flex justify-center my-2">
+        <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+          <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+          <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
+        </svg>
+      </div>
+      <label class="block mt-4">
+        <span class="text-gray-700">翻译结果：</span>
+        <textarea id="outputText" rows="6" readonly class="mt-1 block w-full rounded-lg border-gray-300 p-2 bg-gray-50"></textarea>
+      </label>
+    </div>`;
+  const btn = document.getElementById('btnTranslate');
+  const input = document.getElementById('inputText');
+  const output = document.getElementById('outputText');
+  const langSel = document.getElementById('targetLang');
+  const loading = document.getElementById('loading');
+  btn.onclick = async () => {
+    const text = input.value.trim();
+    const lang = langSel.value;
+    if (!text) {
+      alert('请输入要翻译的内容');
+      return;
+    }
+    btn.disabled = true;
+    loading.classList.remove('hidden');
+    try {
+      const res = await api('/translate', { method: 'POST', body: { text, lang } });
+      output.value = res.result;
+    } catch (err) {
+      console.error(err);
+      let msg = '翻译失败';
+      try {
+        const data = JSON.parse(err.message);
+        if (data.detail) msg = data.detail;
+      } catch {}
+      alert(msg);
+    } finally {
+      loading.classList.add('hidden');
+      btn.disabled = false;
+    }
+  };
 }
 
 async function showFavorites() {
@@ -452,9 +525,7 @@ function init() {
   document.getElementById('logout').onclick = logout;
   document.getElementById('study').onclick = showStudy;
   document.getElementById('search').onclick = showSearch;
-  document.getElementById('translate').onclick = () => {
-    window.location.href = 'translate.html';
-  };
+  document.getElementById('translate').onclick = showTranslate;
   document.getElementById('favorites').onclick = showFavorites;
   document.getElementById('stats').onclick = showStats;
   document.getElementById('settings').onclick = showSettings;
