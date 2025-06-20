@@ -12,6 +12,8 @@ let progress = 0;
 let favorites = new Map();
 let statsCounts = JSON.parse(localStorage.getItem('statsCounts') || '{"unknown":0,"fuzzy":0,"known":0}');
 let progressHistory = JSON.parse(localStorage.getItem('progressHistory') || '[]');
+let speakOnLoad = localStorage.getItem('speakOnLoad') !== 'false';
+let shuffleStudy = localStorage.getItem('shuffleStudy') === 'true';
 
 async function refreshFavorites() {
   try {
@@ -51,6 +53,8 @@ function logout() {
 
 async function showStudy() {
   dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
+  speakOnLoad = localStorage.getItem('speakOnLoad') !== 'false';
+  shuffleStudy = localStorage.getItem('shuffleStudy') === 'true';
   await refreshFavorites();
   await ensureWordBook();
   progress = parseInt(localStorage.getItem('progress_' + currentBook), 10) || 0;
@@ -59,6 +63,12 @@ async function showStudy() {
     studyIndex = 1; // force "All done" message
   } else {
     const slice = wordBookData.slice(progress, progress + dailyCount);
+    if (shuffleStudy) {
+      for (let i = slice.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [slice[i], slice[j]] = [slice[j], slice[i]];
+      }
+    }
     studyWords = slice.map(w => ({ word: w, mode: 'normal' }));
     studyIndex = 0;
     localStorage.setItem('study_done', 'false');
@@ -105,7 +115,7 @@ function renderStudy() {
     : '';
   const backNormal = `<div>${translation}${phrases ? '<hr class="my-2">' + phrases : ''}</div>`;
   const front = card.mode === 'normal'
-    ? `<div class="flex flex-col items-center justify-center h-full"><span class="card-word">${escapeHTML(w.word)}</span><button id="speakBtn" class="mt-2">🔊</button></div>`
+    ? `<div class="flex flex-col items-center justify-center h-full"><span class="card-word">${escapeHTML(w.word)}</span></div>`
     : translation;
   const back = card.mode === 'normal' ? backNormal : escapeHTML(w.word);
   const favKey = w.word.toLowerCase();
@@ -131,6 +141,7 @@ function renderStudy() {
     </div>`;
   const cardOuter = document.getElementById('card');
   const cardInner = cardOuter.querySelector('.flip-card-inner');
+  if (speakOnLoad && card.mode === 'normal') speak(w.word);
   cardOuter.onclick = () => {
     if (showBack) {
       cardInner.classList.remove('flip');
@@ -139,8 +150,6 @@ function renderStudy() {
     }
     showBack = !showBack;
   };
-  const speakBtn = document.getElementById('speakBtn');
-  if (speakBtn) speakBtn.onclick = () => speak(w.word);
   const favBtn = document.getElementById('favStudyBtn');
   favBtn.onclick = async () => {
     if (favorites.has(favKey)) return;
@@ -387,6 +396,10 @@ async function showFavorites() {
   const main = document.getElementById('main');
   main.innerHTML = `
     <div class="flex flex-col gap-2 max-w-xl mx-auto">
+      <div class="flex gap-2">
+        <input id="favSearch" class="border p-2 flex-grow" placeholder="Search favorites">
+        <button id="favGo" class="border rounded px-4 py-2 bg-white shadow">Search</button>
+      </div>
       <div id="favList" class="space-y-2"></div>
       <button id="genArticle" class="border rounded px-4 py-2 bg-blue-500 text-white">AI生成文章</button>
     </div>
@@ -403,8 +416,30 @@ async function showFavorites() {
       </div>
     </div>`;
   const data = await api('/favorites');
-  const list = data.map(w => `<label class="flex items-center gap-2"><input type="checkbox" value="${w.id}"><span>${escapeHTML(w.word)}</span></label>`).join('');
-  document.getElementById('favList').innerHTML = list;
+  let view = data;
+  const favList = document.getElementById('favList');
+  function render(list) {
+    favList.innerHTML = list.map(w => `
+      <label class="flex items-center gap-2">
+        <input type="checkbox" value="${w.id}">
+        <span class="font-semibold">${escapeHTML(w.word)}</span>
+        <span class="text-sm text-gray-600">${w.translations.map(t => escapeHTML(t.type || '')).join(', ')}</span>
+        <span class="text-xs text-gray-400 ml-auto">${new Date(w.added_at).toLocaleDateString()}</span>
+      </label>`).join('');
+  }
+  render(view);
+  document.getElementById('favGo').onclick = () => {
+    const q = document.getElementById('favSearch').value.trim().toLowerCase();
+    if (!q) {
+      view = data;
+    } else {
+      view = data.filter(w =>
+        w.word.toLowerCase().includes(q) ||
+        w.translations.some(t => (t.translation && t.translation.includes(q)) || (t.type && t.type.toLowerCase().includes(q)))
+      );
+    }
+    render(view);
+  };
 
   document.getElementById('genArticle').onclick = async () => {
     const ids = Array.from(document.querySelectorAll('#favList input:checked')).map(cb => parseInt(cb.value, 10));
@@ -426,15 +461,17 @@ async function showFavorites() {
         text = text.replace(reg, m => `**${m}**`);
       });
       loading.classList.add('hidden');
-      let tokens = text.split(/(\s+)/);
       let idx = 0;
-      let md = '';
       const timer = setInterval(() => {
-        md += tokens[idx++] || '';
-        content.innerHTML = marked.parse(md);
+        if (idx > text.length) {
+          clearInterval(timer);
+          content.innerHTML = marked.parse(text);
+          return;
+        }
+        const slice = text.slice(0, idx++);
+        content.innerHTML = marked.parse(slice) + '<span class="typing-dot">●</span>';
         content.scrollTop = content.scrollHeight;
-        if (idx >= tokens.length) clearInterval(timer);
-      }, 1000 / 6);
+      }, 30);
       document.getElementById('closeModal').onclick = () => {
         modal.classList.add('hidden');
         clearInterval(timer);
@@ -512,6 +549,8 @@ function showSettings() {
         <label class="block mb-1">Username</label>
         <input id="usernameInput" class="border p-2 w-full">
       </div>
+      <label class="inline-flex items-center gap-2"><input id="speakOnLoad" type="checkbox">自动发音</label>
+      <label class="inline-flex items-center gap-2"><input id="shuffleStudy" type="checkbox">乱序学习</label>
       <button id="changePwd" class="border rounded px-4 py-2 shadow bg-gray-300">Change Password</button>
       <button id="saveSettings" class="border rounded px-4 py-2 shadow bg-blue-500 text-white">Save</button>
       <button id="deleteAccount" class="border rounded px-4 py-2 shadow bg-red-500 text-white">Delete Account</button>
@@ -542,6 +581,8 @@ function showSettings() {
     const current = localStorage.getItem('wordBook');
     if (current) select.value = current;
   });
+  document.getElementById('speakOnLoad').checked = speakOnLoad;
+  document.getElementById('shuffleStudy').checked = shuffleStudy;
   document.getElementById('changePwd').onclick = () => {
     document.getElementById('pwdModal').classList.remove('hidden');
   };
@@ -576,6 +617,10 @@ function showSettings() {
       localStorage.setItem('wordBook', book);
       loadedBook = null;
     }
+    const speakChk = document.getElementById('speakOnLoad').checked;
+    localStorage.setItem('speakOnLoad', speakChk ? 'true' : 'false');
+    const shuffleChk = document.getElementById('shuffleStudy').checked;
+    localStorage.setItem('shuffleStudy', shuffleChk ? 'true' : 'false');
     const username = document.getElementById('usernameInput').value.trim();
     try {
       if (username) await api('/users/me', { method: 'PUT', body: { username } });

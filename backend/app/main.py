@@ -378,16 +378,17 @@ def remove_fav(word_id: int, current_user: User = Depends(get_current_user)):
 
 
 @app.get("/favorites", response_model=List[WordOut])
-def list_fav(current_user: User = Depends(get_current_user)):
-    words = crud.list_favorites(current_user.id)
+def list_fav(q: str | None = None, current_user: User = Depends(get_current_user)):
+    words = crud.list_favorites(current_user.id, q)
     result = []
-    for w in words:
+    for w, added_at in words:
         result.append(
             WordOut(
                 id=w.id,
                 word=w.word,
                 translations=json.loads(w.translations),
                 phrases=json.loads(w.phrases) if w.phrases else [],
+                added_at=added_at,
             )
         )
     return result

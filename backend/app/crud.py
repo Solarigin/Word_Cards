@@ -216,13 +216,20 @@ def remove_favorite(user_id: int, word_id: int) -> bool:
         return True
 
 
-def list_favorites(user_id: int):
+def list_favorites(user_id: int, q: str | None = None):
     with get_session() as session:
         statement = (
-            select(Word)
+            select(Word, Favorite.added_at)
             .join(Favorite, Favorite.word_id == Word.id)
             .where(Favorite.user_id == user_id)
         )
+        if q:
+            ql = q.lower()
+            statement = statement.where(
+                (func.lower(Word.word).contains(ql))
+                | (func.lower(Word.translations).contains(ql))
+            )
+        statement = statement.order_by(Favorite.added_at.desc())
         return session.exec(statement).all()
 
 
