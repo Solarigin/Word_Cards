@@ -11,6 +11,7 @@ let wordBookData = [];
 let progress = 0;
 let favorites = new Map();
 let statsCounts = JSON.parse(localStorage.getItem('statsCounts') || '{"unknown":0,"fuzzy":0,"known":0}');
+let statsWords = JSON.parse(localStorage.getItem('statsWords') || '{"unknown":[],"fuzzy":[],"known":[]}');
 let progressHistory = JSON.parse(localStorage.getItem('progressHistory') || '[]');
 let speakOnLoad = localStorage.getItem('speakOnLoad') !== 'false';
 let shuffleStudy = localStorage.getItem('shuffleStudy') === 'true';
@@ -177,16 +178,20 @@ function renderStudy() {
       const q = parseInt(btn.dataset.q, 10);
       showBack = false;
       showAllPhrases = false;
+      const wordText = w.word;
       if (q === 0) {
         studyWords.push(card);
         statsCounts.unknown++;
+        if (!statsWords.unknown.includes(wordText)) statsWords.unknown.push(wordText);
       } else if (q === 1) {
         studyWords.splice(studyIndex + 1, 0, { word: w, mode: 'rev' });
         statsCounts.fuzzy++;
+        if (!statsWords.fuzzy.includes(wordText)) statsWords.fuzzy.push(wordText);
       } else if (q === 2) {
         progress++;
         saveProgress();
         statsCounts.known++;
+        if (!statsWords.known.includes(wordText)) statsWords.known.push(wordText);
         const now = Date.now();
         const today = new Date(now).toISOString().slice(0, 10);
         const last = progressHistory[progressHistory.length - 1];
@@ -199,6 +204,7 @@ function renderStudy() {
         localStorage.setItem('progressHistory', JSON.stringify(progressHistory));
       }
       localStorage.setItem('statsCounts', JSON.stringify(statsCounts));
+      localStorage.setItem('statsWords', JSON.stringify(statsWords));
       studyIndex++;
       renderStudy();
     };
@@ -576,9 +582,15 @@ async function showStats() {
     </div>
     <div class="mt-6"><canvas id="progressChart"></canvas></div>
     <div class="mt-4 grid grid-cols-3 gap-2 text-center">
-      <div class="shadow rounded p-4 bg-white"><div class="text-xl font-bold">${counts.unknown}</div><div class="text-gray-500">不认识</div></div>
-      <div class="shadow rounded p-4 bg-white"><div class="text-xl font-bold">${counts.fuzzy}</div><div class="text-gray-500">模糊</div></div>
-      <div class="shadow rounded p-4 bg-white"><div class="text-xl font-bold">${counts.known}</div><div class="text-gray-500">认识</div></div>
+      <div data-type="unknown" class="stats-item shadow rounded p-4 bg-white cursor-pointer"><div class="text-xl font-bold">${counts.unknown}</div><div class="text-gray-500">不认识</div></div>
+      <div data-type="fuzzy" class="stats-item shadow rounded p-4 bg-white cursor-pointer"><div class="text-xl font-bold">${counts.fuzzy}</div><div class="text-gray-500">模糊</div></div>
+      <div data-type="known" class="stats-item shadow rounded p-4 bg-white cursor-pointer"><div class="text-xl font-bold">${counts.known}</div><div class="text-gray-500">认识</div></div>
+    </div>
+    <div id="statsModal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden">
+      <div class="bg-white p-4 rounded shadow max-w-md w-full">
+        <button id="closeStatsModal" class="float-right">✖</button>
+        <div id="statsModalContent" class="mt-2 max-h-60 overflow-y-auto"></div>
+      </div>
     </div>`;
   if (history.length) {
     const daily = new Map();
@@ -598,6 +610,23 @@ async function showStats() {
       options: { scales: { y: { beginAtZero: true } } }
     });
   }
+  document.querySelectorAll('.stats-item').forEach(it => {
+    it.onclick = () => {
+      const type = it.dataset.type;
+      const list = statsWords[type] || [];
+      const modal = document.getElementById('statsModal');
+      const content = document.getElementById('statsModalContent');
+      if (list.length) {
+        content.innerHTML = '<ul class="list-disc pl-4 space-y-1">' + list.map(w => '<li>' + escapeHTML(w) + '</li>').join('') + '</ul>';
+      } else {
+        content.innerHTML = '<div class="text-center text-gray-500">No words</div>';
+      }
+      modal.classList.remove('hidden');
+    };
+  });
+  document.getElementById('closeStatsModal').onclick = () => {
+    document.getElementById('statsModal').classList.add('hidden');
+  };
 }
 
 function showSettings() {
