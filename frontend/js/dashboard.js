@@ -62,13 +62,14 @@ async function showStudy() {
     studyWords = [];
     studyIndex = 1; // force "All done" message
   } else {
-    const slice = wordBookData.slice(progress, progress + dailyCount);
+    let remaining = wordBookData.slice(progress);
     if (shuffleStudy) {
-      for (let i = slice.length - 1; i > 0; i--) {
+      for (let i = remaining.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
-        [slice[i], slice[j]] = [slice[j], slice[i]];
+        [remaining[i], remaining[j]] = [remaining[j], remaining[i]];
       }
     }
+    const slice = remaining.slice(0, dailyCount);
     studyWords = slice.map(w => ({ word: w, mode: 'normal' }));
     studyIndex = 0;
     localStorage.setItem('study_done', 'false');
@@ -419,6 +420,10 @@ async function showFavorites() {
   let view = data;
   const favList = document.getElementById('favList');
   function render(list) {
+    if (!list.length) {
+      favList.innerHTML = '<div class="text-center text-gray-500">No favorites</div>';
+      return;
+    }
     favList.innerHTML = list.map(w => `
       <label class="flex items-center gap-2">
         <input type="checkbox" value="${w.id}">
