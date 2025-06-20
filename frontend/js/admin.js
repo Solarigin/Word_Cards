@@ -75,6 +75,9 @@ function init() {
     window.location.href = 'dashboard.html';
     return;
   }
+  const sidebar = document.getElementById('sidebar');
+  document.getElementById('toggleNav').onclick = () => sidebar.classList.toggle('open');
+  sidebar.addEventListener('click', e => { if (e.target.tagName === 'BUTTON') sidebar.classList.remove('open'); });
   document.getElementById('logout').onclick = logout;
   document.getElementById('users').onclick = loadUsers;
   document.getElementById('deletions').onclick = loadDeletions;
