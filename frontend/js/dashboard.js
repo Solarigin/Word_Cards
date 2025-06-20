@@ -120,7 +120,7 @@ function renderStudy() {
     : translation;
   const back = card.mode === 'normal' ? backNormal : escapeHTML(w.word);
   const favKey = w.word.toLowerCase();
-  const favText = favorites.has(favKey) ? '已收藏' : '收藏';
+  const favText = favorites.has(favKey) ? '取消收藏' : '收藏';
   const favClass = favorites.has(favKey) ? 'bg-green-600 text-white' : 'bg-green-200 text-green-800';
   main.innerHTML = `
     <div class="flex flex-col items-center gap-4 min-h-screen animate-slide-up">
@@ -153,10 +153,19 @@ function renderStudy() {
   };
   const favBtn = document.getElementById('favStudyBtn');
   favBtn.onclick = async () => {
-    if (favorites.has(favKey)) return;
+    if (favorites.has(favKey)) {
+      try {
+        await api('/favorites/' + favorites.get(favKey), { method: 'DELETE' });
+        favorites.delete(favKey);
+        favBtn.textContent = '收藏';
+        favBtn.classList.remove('bg-green-600', 'text-white');
+        favBtn.classList.add('bg-green-200', 'text-green-800');
+      } catch {}
+      return;
+    }
     const added = await addFavoriteByWord(w.word);
     if (added) {
-      favBtn.textContent = '已收藏';
+      favBtn.textContent = '取消收藏';
       favBtn.classList.remove('bg-green-200', 'text-green-800');
       favBtn.classList.add('bg-green-600', 'text-white');
     }
@@ -348,7 +357,7 @@ function showWordModal(w) {
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
   const isFav = favorites.has(w.word.toLowerCase());
-  const favText = isFav ? '已收藏' : '收藏';
+  const favText = isFav ? '取消收藏' : '收藏';
   const favClass = isFav ? 'bg-green-600 text-white' : 'bg-green-200 text-green-800';
   content.innerHTML = `
     <h2 class="text-xl font-bold mb-2">${escapeHTML(w.word)}</h2>
@@ -364,11 +373,30 @@ function showWordModal(w) {
   document.getElementById('speakBtn').onclick = () => speak(w.word);
   const fav = document.getElementById('favBtn');
   if (fav) fav.onclick = async () => {
-    if (favorites.has(w.word.toLowerCase())) return;
+    const key = w.word.toLowerCase();
+    if (favorites.has(key)) {
+      try {
+        await api('/favorites/' + favorites.get(key), { method: 'DELETE' });
+        favorites.delete(key);
+        fav.textContent = '收藏';
+        fav.classList.remove('bg-green-600', 'text-white');
+        fav.classList.add('bg-green-200', 'text-green-800');
+      } catch {}
+      return;
+    }
+    let id = w.id;
+    if (!id) {
+      try {
+        const res = await api('/search?q=' + encodeURIComponent(w.word));
+        const item = res.find(it => it.word.toLowerCase() === key);
+        if (item) id = item.id;
+      } catch {}
+    }
+    if (!id) return;
     try {
-      await api('/favorites/' + w.id, { method: 'POST' });
-      favorites.set(w.word.toLowerCase(), w.id);
-      fav.textContent = '已收藏';
+      await api('/favorites/' + id, { method: 'POST' });
+      favorites.set(key, id);
+      fav.textContent = '取消收藏';
       fav.classList.remove('bg-green-200', 'text-green-800');
       fav.classList.add('bg-green-600', 'text-white');
     } catch {}
@@ -428,12 +456,13 @@ async function showFavorites() {
       <label class="flex items-center gap-2">
         <input type="checkbox" value="${w.id}">
         <span class="font-semibold">${escapeHTML(w.word)}</span>
-        <span class="text-sm text-gray-600">${w.translations.map(t => escapeHTML(t.type || '')).join(', ')}</span>
+        <span class="text-sm text-gray-600">${w.translations.map(t => `${escapeHTML(t.type || '')} ${escapeHTML(t.translation || '')}`).join(', ')}</span>
         <span class="text-xs text-gray-400 ml-auto">${new Date(w.added_at).toLocaleDateString()}</span>
+        <button data-id="${w.id}" class="removeFav text-red-600 ml-2">🗑</button>
       </label>`).join('');
   }
   render(view);
-  document.getElementById('favGo').onclick = () => {
+  function doSearch() {
     const q = document.getElementById('favSearch').value.trim().toLowerCase();
     if (!q) {
       view = data;
@@ -444,7 +473,23 @@ async function showFavorites() {
       );
     }
     render(view);
-  };
+  }
+  document.getElementById('favGo').onclick = doSearch;
+  document.getElementById('favSearch').addEventListener('input', doSearch);
+
+  favList.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('removeFav')) {
+      const id = parseInt(e.target.dataset.id, 10);
+      try {
+        await api('/favorites/' + id, { method: 'DELETE' });
+        const word = data.find(w => w.id === id).word.toLowerCase();
+        favorites.delete(word);
+        data.splice(data.findIndex(w => w.id === id), 1);
+        view = view.filter(w => w.id !== id);
+        render(view);
+      } catch {}
+    }
+  });
 
   document.getElementById('genArticle').onclick = async () => {
     const ids = Array.from(document.querySelectorAll('#favList input:checked')).map(cb => parseInt(cb.value, 10));
