@@ -8,12 +8,14 @@
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body class="bg-gradient-to-br from-blue-400 via-purple-500 to-pink-500 min-h-screen animate-fade-in">
-  <nav class="navbar">
-    <button id="users">Users</button>
-    <button id="deletions">Deletion Requests</button>
-    <button id="logout" class="ml-auto">Logout</button>
-  </nav>
-  <main id="main" class="p-4 max-w-4xl mx-auto"></main>
+  <div class="layout">
+    <nav class="sidebar">
+      <button id="users">Users</button>
+      <button id="deletions">Deletion Requests</button>
+      <button id="logout" class="mt-auto">Logout</button>
+    </nav>
+    <main id="main" class="flex-1 p-4"></main>
+  </div>
   <script src="js/common.js"></script>
   <script src="js/admin.js"></script>
 </body>
