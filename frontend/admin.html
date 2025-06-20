@@ -7,11 +7,12 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 min-h-screen animate-fade-in">
-  <nav class="navbar">
+<body class="bg-gradient-to-br from-indigo-200 via-purple-200 to-pink-200 min-h-screen animate-fade-in">
+  <button id="toggleNav" class="bg-gray-800 text-white p-2 rounded">☰</button>
+  <nav id="sidebar" class="sidebar">
     <button id="users">Users</button>
     <button id="deletions">Deletion Requests</button>
-    <button id="logout" class="ml-auto">Logout</button>
+    <button id="logout" class="mt-auto">Logout</button>
   </nav>
   <main id="main" class="p-4 max-w-4xl mx-auto animate-slide-up"></main>
   <script src="js/common.js"></script>
