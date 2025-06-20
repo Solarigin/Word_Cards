@@ -1,84 +1,44 @@
-function logout() {
-  localStorage.removeItem('token');
-  localStorage.removeItem('role');
-  window.location.href = 'login.html';
-}
+document.addEventListener('DOMContentLoaded', loadUsers);
 
 async function loadUsers() {
+  const tbody = document.getElementById('user-table-body');
   try {
-    const data = await api('/admin/users');
-    const rows = data.map(u => `<tr>
-      <td class="border px-2">${u.id}</td>
-      <td class="border px-2">${escapeHTML(u.username)}</td>
-      <td class="border px-2">${escapeHTML(u.role)}</td>
-      <td class="border px-2 text-center"><button data-id="${u.id}" class="reset bg-blue-500 text-white px-2 rounded">Reset</button></td>
-    </tr>`).join('');
-    document.getElementById('main').innerHTML = `
-      <table class="table-auto w-full bg-white shadow rounded">
-        <thead><tr><th class="border px-2">ID</th><th class="border px-2">Username</th><th class="border px-2">Role</th><th class="border px-2">Actions</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <div id="msg" class="text-green-600 mt-2"></div>`;
-    document.querySelectorAll('button.reset').forEach(btn => {
-      btn.onclick = async () => {
-        const pwd = prompt('New password:');
-        if (!pwd) return;
-        try {
-          await api(`/admin/users/${btn.dataset.id}/reset_pwd?password=${encodeURIComponent(pwd)}`, { method: 'PUT' });
-          document.getElementById('msg').textContent = 'Password reset';
-        } catch {
-          document.getElementById('msg').textContent = 'Error';
-        }
-      };
+    const users = await apiRequest('/admin/users');
+    tbody.innerHTML = '';
+    users.forEach(u => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td class="px-4 py-2">${u.id}</td>
+        <td class="px-4 py-2">${u.username}</td>
+        <td class="px-4 py-2">${u.role}</td>
+        <td class="px-4 py-2 space-x-2">
+          <button data-id="${u.id}" class="px-3 py-1 rounded bg-indigo-600 text-white reset-btn">Reset</button>
+          <button data-id="${u.id}" class="px-3 py-1 rounded bg-gray-200 text-gray-700 delete-btn">Delete</button>
+        </td>`;
+      tbody.appendChild(tr);
     });
-  } catch {
-    document.getElementById('main').textContent = 'Failed to load users';
+    document.querySelectorAll('.reset-btn').forEach(b =>
+      b.addEventListener('click', resetUser)
+    );
+    document.querySelectorAll('.delete-btn').forEach(b =>
+      b.addEventListener('click', deleteUser)
+    );
+  } catch (e) {
+    console.error(e);
+    tbody.innerHTML = '<tr><td colspan="4" class="text-center py-4">加载失败</td></tr>';
   }
 }
 
-async function loadDeletions() {
-  try {
-    const data = await api('/admin/deletion_requests');
-    const rows = data.map(r => `<tr>
-      <td class="border px-2">${r.user_id}</td>
-      <td class="border px-2">${escapeHTML(r.username)}</td>
-      <td class="border px-2">${new Date(r.requested_at).toLocaleString()}</td>
-      <td class="border px-2 text-center"><button data-id="${r.user_id}" class="approve bg-red-500 text-white px-2 rounded">Approve</button></td>
-    </tr>`).join('');
-    document.getElementById('main').innerHTML = `
-      <table class="table-auto w-full bg-white shadow rounded">
-        <thead><tr><th class="border px-2">ID</th><th class="border px-2">User</th><th class="border px-2">Requested</th><th class="border px-2">Actions</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-      <div id="msg" class="text-green-600 mt-2"></div>`;
-    document.querySelectorAll('button.approve').forEach(btn => {
-      btn.onclick = async () => {
-        try {
-          await api(`/admin/deletion_requests/${btn.dataset.id}/approve`, { method: 'POST' });
-          loadDeletions();
-        } catch {
-          document.getElementById('msg').textContent = 'Error';
-        }
-      };
-    });
-  } catch {
-    document.getElementById('main').textContent = 'Failed to load requests';
-  }
+async function resetUser(e) {
+  if (!confirm('确定重置此用户数据？')) return;
+  const id = e.target.dataset.id;
+  await apiRequest(`/admin/users/${id}/reset`, { method: 'POST' });
+  alert('已重置');
 }
 
-function init() {
-  if (!localStorage.getItem('token')) {
-    window.location.href = 'login.html';
-    return;
-  }
-  if (localStorage.getItem('role') !== 'admin') {
-    window.location.href = 'dashboard.html';
-    return;
-  }
-  document.getElementById('logout').onclick = logout;
-  document.getElementById('users').onclick = loadUsers;
-  document.getElementById('deletions').onclick = loadDeletions;
+async function deleteUser(e) {
+  if (!confirm('确定删除此用户？')) return;
+  const id = e.target.dataset.id;
+  await apiRequest(`/admin/users/${id}`, { method: 'DELETE' });
   loadUsers();
 }
-
-window.addEventListener('DOMContentLoaded', init);

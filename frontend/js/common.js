@@ -1,31 +1,42 @@
-const API_URL = 'http://localhost:8000';
+const API_BASE = 'http://localhost:8000';
 
-function escapeHTML(str) {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function api(path, options = {}) {
-  options.headers = options.headers || {};
+async function apiRequest(path, options = {}) {
   const token = localStorage.getItem('token');
-  if (token) options.headers['Authorization'] = 'Bearer ' + token;
-  if (options.body && !(options.body instanceof FormData)) {
-    options.headers['Content-Type'] = 'application/json';
-    options.body = JSON.stringify(options.body);
-  }
-  return fetch(API_URL + path, options).then(async (res) => {
-    if (!res.ok) throw new Error(await res.text());
-    const ct = res.headers.get('content-type');
-    return ct && ct.includes('application/json') ? res.json() : res.text();
-  });
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(options.headers || {})
+  };
+  if (token) headers['Authorization'] = `Bearer ${token}`;
+  const res = await fetch(API_BASE + path, { ...options, headers });
+  if (!res.ok) throw new Error(`API Error ${res.status}`);
+  return res.json();
 }
 
-function validatePassword(pwd) {
-  return /^[A-Za-z0-9]{6,}$/.test(pwd)
-    ? ''
-    : '密码不能为空, 不能含特殊字符且至少6位';
-}
+// Study 页面逻辑：加载单词、翻转、下一词
+document.addEventListener('DOMContentLoaded', () => {
+  const front = document.getElementById('card-front');
+  const back = document.getElementById('card-back');
+  const inner = document.getElementById('card-inner');
+  if (!front || !back || !inner) return;
+  document.getElementById('flip-btn').addEventListener('click', () => {
+    inner.classList.toggle('flipped');
+  });
+  document.getElementById('next-btn').addEventListener('click', loadWord);
+
+  async function loadWord() {
+    try {
+      const data = await apiRequest('/words/review');
+      front.textContent = data.word;
+      back.textContent = data.translation;
+      inner.classList.remove('flipped');
+      const prog = document.getElementById('progress-text');
+      if (prog && data.reviewed != null && data.total != null) {
+        prog.textContent = `今日：${data.reviewed}/${data.total}`;
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  loadWord();
+});
