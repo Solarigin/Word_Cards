@@ -21,6 +21,10 @@ Open `frontend/login.html` in a browser or serve the directory with any HTTP ser
 After logging in you can study words on `index.html` or view your progress on `dashboard.html`.
 All pages use Tailwind CSS via CDN and communicate with the FastAPI backend running on `http://localhost:8000`.
 
+The backend creates a default administrator account on first run. Use the
+credentials **Admin** / **88888888** to log in and access the admin panel at
+`frontend/admin.html`.
+
 Word books are stored as JSON files under the `wordbooks/` directory using the naming
 scheme `wordBook_<NAME>.json`.
 
