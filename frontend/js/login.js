@@ -1,59 +1,16 @@
-function loginRequest(username, password) {
-  const form = new URLSearchParams();
-  form.append('username', username);
-  form.append('password', password);
-  return fetch(API_URL + '/auth/login', { method: 'POST', body: form })
-    .then(res => res.ok ? res.json() : Promise.reject());
-}
-
-async function afterAuth(token) {
-  localStorage.setItem('token', token);
+const form = document.getElementById('login-form');
+form.addEventListener('submit', async e => {
+  e.preventDefault();
+  const u = form.username.value;
+  const p = form.password.value;
   try {
-    const me = await api('/users/me');
-    localStorage.setItem('role', me.role);
-    window.location.href = me.role === 'admin' ? 'admin.html' : 'dashboard.html';
+    const data = await apiRequest('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ username: u, password: p })
+    });
+    localStorage.setItem('token', data.token);
+    window.location.href = 'index.html';
   } catch {
-    document.getElementById('msg').textContent = 'Login failed';
+    alert('登陆失败，请检查用户名或密码');
   }
-}
-
-function registerRequest(username, password) {
-  return api('/auth/register', { method: 'POST', body: { username, password } });
-}
-
-function init() {
-  document.getElementById('login').onclick = async () => {
-    const u = document.getElementById('user').value;
-    const p = document.getElementById('pwd').value;
-    const err = validatePassword(p);
-    if (err) {
-      document.getElementById('msg').textContent = err;
-      return;
-    }
-    try {
-      const data = await loginRequest(u, p);
-      await afterAuth(data.access_token);
-    } catch {
-      document.getElementById('msg').textContent = 'Login failed';
-    }
-  };
-
-  document.getElementById('register').onclick = async () => {
-    const u = document.getElementById('user').value;
-    const p = document.getElementById('pwd').value;
-    const err = validatePassword(p);
-    if (err) {
-      document.getElementById('msg').textContent = err;
-      return;
-    }
-    try {
-      await registerRequest(u, p);
-      const data = await loginRequest(u, p);
-      await afterAuth(data.access_token);
-    } catch {
-      document.getElementById('msg').textContent = 'Register failed';
-    }
-  };
-}
-
-window.addEventListener('DOMContentLoaded', init);
+});
