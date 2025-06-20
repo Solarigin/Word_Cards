@@ -187,7 +187,15 @@ function renderStudy() {
         progress++;
         saveProgress();
         statsCounts.known++;
-        progressHistory.push({ time: Date.now(), progress });
+        const now = Date.now();
+        const today = new Date(now).toISOString().slice(0, 10);
+        const last = progressHistory[progressHistory.length - 1];
+        if (last && new Date(last.time).toISOString().slice(0, 10) === today) {
+          last.time = now;
+          last.progress = progress;
+        } else {
+          progressHistory.push({ time: now, progress });
+        }
         localStorage.setItem('progressHistory', JSON.stringify(progressHistory));
       }
       localStorage.setItem('statsCounts', JSON.stringify(statsCounts));
@@ -573,12 +581,19 @@ async function showStats() {
       <div class="shadow rounded p-4 bg-white"><div class="text-xl font-bold">${counts.known}</div><div class="text-gray-500">认识</div></div>
     </div>`;
   if (history.length) {
+    const daily = new Map();
+    history.forEach(h => {
+      const day = new Date(h.time).toISOString().slice(0, 10);
+      daily.set(day, h.progress);
+    });
+    const labels = Array.from(daily.keys());
+    const data = Array.from(daily.values());
     const ctx = document.getElementById('progressChart');
     new Chart(ctx, {
       type: 'line',
       data: {
-        labels: history.map(h => new Date(h.time).toLocaleDateString()),
-        datasets: [{ label: 'Progress', data: history.map(h => h.progress), borderColor: 'blue', fill: false }]
+        labels,
+        datasets: [{ label: 'Progress', data, borderColor: 'blue', fill: false }]
       },
       options: { scales: { y: { beginAtZero: true } } }
     });
