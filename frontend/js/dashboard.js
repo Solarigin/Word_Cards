@@ -102,7 +102,9 @@ function renderStudy() {
       })()
     : '';
   const backNormal = `<div>${translation}${phrases ? '<hr class="my-2">' + phrases : ''}</div>`;
-  const front = card.mode === 'normal' ? escapeHTML(w.word) : translation;
+  const front = card.mode === 'normal'
+    ? `<div class="flex flex-col items-center justify-center h-full"><span class="card-word">${escapeHTML(w.word)}</span><button id="speakBtn" class="mt-2">🔊</button></div>`
+    : translation;
   const back = card.mode === 'normal' ? backNormal : escapeHTML(w.word);
   const favKey = w.word.toLowerCase();
   const favText = favorites.has(favKey) ? '已收藏' : '收藏';
@@ -110,10 +112,10 @@ function renderStudy() {
   main.innerHTML = `
     <div class="flex flex-col items-center gap-4 min-h-screen animate-slide-up">
       <div class="relative">
-        <div id="card" class="flip-card w-[70vw] h-[70vh] cursor-pointer card-hover">
+        <div id="card" class="flip-card w-[49vw] h-[49vh] cursor-pointer card-hover">
           <div class="flip-card-inner ${showBack ? 'flip' : ''}">
             <div class="flip-card-front border p-4 text-center w-full h-full overflow-y-auto flex items-center justify-center bg-white shadow rounded">${front}</div>
-            <div class="flip-card-back border p-4 text-center w-full h-full overflow-y-auto flex items-center justify-center bg-white shadow rounded">${back}</div>
+            <div class="flip-card-back border p-4 text-left w-full h-full overflow-y-auto flex items-start justify-start bg-white shadow rounded">${back}</div>
           </div>
         </div>
         <button id="favStudyBtn" class="absolute top-2 right-2 border px-2 rounded ${favClass}">${favText}</button>
@@ -127,10 +129,22 @@ function renderStudy() {
     </div>`;
   const cardOuter = document.getElementById('card');
   const cardInner = cardOuter.querySelector('.flip-card-inner');
+  cardInner.addEventListener('animationend', () => {
+    cardInner.classList.remove('animate-flip', 'animate-flip-back');
+  });
   cardOuter.onclick = () => {
-    cardInner.classList.toggle('flip');
+    cardInner.classList.remove('animate-flip', 'animate-flip-back');
+    if (showBack) {
+      cardInner.classList.add('animate-flip-back');
+      cardInner.classList.remove('flip');
+    } else {
+      cardInner.classList.add('animate-flip');
+      cardInner.classList.add('flip');
+    }
     showBack = !showBack;
   };
+  const speakBtn = document.getElementById('speakBtn');
+  if (speakBtn) speakBtn.onclick = () => speak(w.word);
   const favBtn = document.getElementById('favStudyBtn');
   favBtn.onclick = async () => {
     if (favorites.has(favKey)) return;
@@ -377,7 +391,7 @@ async function showFavorites() {
     <div id="modal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden">
       <div class="bg-white p-4 rounded shadow max-w-md w-full">
         <button id="closeModal" class="float-right">✖</button>
-        <div id="articleContent" class="mt-2 whitespace-pre-wrap"></div>
+        <div id="articleContent" class="mt-2 prose max-h-96 overflow-y-auto"></div>
         <div id="articleLoading" class="hidden flex justify-center my-2">
           <svg class="animate-spin h-5 w-5 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
@@ -398,20 +412,20 @@ async function showFavorites() {
     const content = document.getElementById('articleContent');
     const loading = document.getElementById('articleLoading');
     btn.disabled = true;
-    content.textContent = '';
+    content.innerHTML = '';
     modal.classList.remove('hidden');
     loading.classList.remove('hidden');
     try {
       const res = await api('/generate_article', { method: 'POST', body: { word_ids: ids } });
-      const text = res.result;
+      let text = res.result;
+      const selected = ids.map(id => data.find(w => w.id === id).word);
+      selected.forEach(w => {
+        const reg = new RegExp('\\b' + w.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&') + '\\b', 'gi');
+        text = text.replace(reg, m => `**${m}**`);
+      });
       loading.classList.add('hidden');
-      let i = 0;
-      const timer = setInterval(() => {
-        content.textContent += text[i] || '';
-        i++;
-        if (i >= text.length) clearInterval(timer);
-      }, 50);
-      document.getElementById('closeModal').onclick = () => { modal.classList.add('hidden'); clearInterval(timer); };
+      content.innerHTML = marked.parse(text);
+      document.getElementById('closeModal').onclick = () => { modal.classList.add('hidden'); };
     } catch (err) {
       console.error(err);
       loading.classList.add('hidden');
@@ -466,17 +480,26 @@ function showSettings() {
         <label class="block mb-1">Username</label>
         <input id="usernameInput" class="border p-2 w-full">
       </div>
-      <div>
-        <label class="block mb-1">Old Password</label>
-        <input id="oldPasswordInput" type="password" class="border p-2 w-full">
-      </div>
-      <div>
-        <label class="block mb-1">New Password</label>
-        <input id="passwordInput" type="password" class="border p-2 w-full">
-      </div>
+      <button id="changePwd" class="border rounded px-4 py-2 shadow bg-blue-500 text-white">Change Password</button>
       <button id="saveSettings" class="border rounded px-4 py-2 shadow bg-blue-500 text-white">Save</button>
       <button id="deleteAccount" class="border rounded px-4 py-2 shadow bg-red-500 text-white">Delete Account</button>
       <div id="settingsMsg" class="text-green-600"></div>
+    </div>
+    <div id="pwdModal" class="fixed inset-0 bg-black/50 flex items-center justify-center hidden">
+      <div class="bg-white p-4 rounded shadow max-w-sm w-full">
+        <button id="closePwdModal" class="float-right">✖</button>
+        <div class="mt-2 space-y-2">
+          <div>
+            <label class="block mb-1">Old Password</label>
+            <input id="oldPasswordInput" type="password" class="border p-2 w-full">
+          </div>
+          <div>
+            <label class="block mb-1">New Password</label>
+            <input id="passwordInput" type="password" class="border p-2 w-full">
+          </div>
+          <button id="savePassword" class="border rounded px-4 py-2 shadow bg-blue-500 text-white">Save</button>
+        </div>
+      </div>
     </div>`;
   api('/users/me').then(data => {
     document.getElementById('usernameInput').value = data.username;
@@ -487,6 +510,29 @@ function showSettings() {
     const current = localStorage.getItem('wordBook');
     if (current) select.value = current;
   });
+  document.getElementById('changePwd').onclick = () => {
+    document.getElementById('pwdModal').classList.remove('hidden');
+  };
+  document.getElementById('closePwdModal').onclick = () => {
+    document.getElementById('pwdModal').classList.add('hidden');
+  };
+  document.getElementById('savePassword').onclick = async () => {
+    const oldPwd = document.getElementById('oldPasswordInput').value;
+    const newPwd = document.getElementById('passwordInput').value;
+    if (!oldPwd || !newPwd) return;
+    const err = validatePassword(newPwd);
+    if (err) {
+      document.getElementById('settingsMsg').textContent = err;
+      return;
+    }
+    try {
+      await api('/users/me/password', { method: 'PUT', body: { old_password: oldPwd, new_password: newPwd } });
+      localStorage.removeItem('token');
+      window.location.href = 'login.html';
+    } catch {
+      document.getElementById('settingsMsg').textContent = 'Error';
+    }
+  };
   document.getElementById('saveSettings').onclick = async () => {
     const daily = parseInt(document.getElementById('dailyInput').value, 10);
     if (!isNaN(daily) && daily > 0) {
@@ -499,21 +545,8 @@ function showSettings() {
       loadedBook = null;
     }
     const username = document.getElementById('usernameInput').value.trim();
-    const oldPwd = document.getElementById('oldPasswordInput').value;
-    const newPwd = document.getElementById('passwordInput').value;
     try {
       if (username) await api('/users/me', { method: 'PUT', body: { username } });
-      if (oldPwd && newPwd) {
-        const err = validatePassword(newPwd);
-        if (err) {
-          document.getElementById('settingsMsg').textContent = err;
-          return;
-        }
-        await api('/users/me/password', { method: 'PUT', body: { old_password: oldPwd, new_password: newPwd } });
-        localStorage.removeItem('token');
-        window.location.href = 'login.html';
-        return;
-      }
       document.getElementById('settingsMsg').textContent = 'Saved';
     } catch {
       document.getElementById('settingsMsg').textContent = 'Error';
