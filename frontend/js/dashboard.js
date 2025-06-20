@@ -511,15 +511,17 @@ async function showFavorites() {
         text = text.replace(reg, m => `**${m}**`);
       });
       loading.classList.add('hidden');
+      content.innerHTML = '<span class="cursor typing-dot">●</span>';
+      const cursor = content.querySelector('.cursor');
       let idx = 0;
       const timer = setInterval(() => {
-        if (idx > text.length) {
+        if (idx >= text.length) {
           clearInterval(timer);
+          cursor.remove();
           content.innerHTML = marked.parse(text);
           return;
         }
-        const slice = text.slice(0, idx++);
-        content.innerHTML = marked.parse(slice) + '<span class="typing-dot">●</span>';
+        content.insertBefore(document.createTextNode(text[idx++]), cursor);
         content.scrollTop = content.scrollHeight;
       }, 30);
       document.getElementById('closeModal').onclick = () => {
