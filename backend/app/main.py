@@ -325,9 +325,9 @@ async def translate(payload: TranslationRequest):
     )
     user_prompt = f"Translate the text to {lang}, please do not explain any sentences, just translate or leave them as they are.:\n{text}"
 
-    async with httpx.AsyncClient() as client:
-        last_error = None
-        for _ in range(3):
+    async with httpx.AsyncClient(timeout=20) as client:
+        backoff = [0.5, 1.5, 3.0]
+        for delay in backoff:
             try:
                 resp = await client.post(
                     TRANSLATE_API_URL,
@@ -353,10 +353,14 @@ async def translate(payload: TranslationRequest):
                 data = resp.json()
                 result = data["choices"][0]["message"]["content"].strip()
                 return {"result": result}
-            except Exception as exc:
-                last_error = exc
-                await asyncio.sleep(0.5)
-        raise HTTPException(status_code=502, detail="Translation service error") from last_error
+            except httpx.HTTPStatusError as exc:
+                logger.error("DeepSeek error %s: %s", exc.response.status_code, exc.response.text)
+                if 400 <= exc.response.status_code < 500:
+                    raise HTTPException(exc.response.status_code, f"LLM returned {exc.response.status_code}")
+            except httpx.RequestError as exc:
+                logger.error("Network error: %s", exc)
+            await asyncio.sleep(delay)
+        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Translation service unavailable after retries")
 
 
 @app.post("/favorites/{word_id}")
