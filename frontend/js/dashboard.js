@@ -3,6 +3,7 @@
 let studyWords = [];
 let studyIndex = 0;
 let showBack = false;
+let showAllPhrases = false;
 let dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
 let currentBook = localStorage.getItem('wordBook') || 'TEST';
 let loadedBook = null;
@@ -61,6 +62,7 @@ async function showStudy() {
     localStorage.setItem('study_done', 'false');
   }
   showBack = false;
+  showAllPhrases = false;
   renderStudy();
 }
 
@@ -90,9 +92,14 @@ function renderStudy() {
     .map(t => `${escapeHTML(t.type || '')} ${escapeHTML(t.translation)}`)
     .join('<br>');
   const phrases = w.phrases && w.phrases.length
-    ? '<ul class="list-disc pl-4 space-y-1 max-h-40 overflow-y-auto">' +
-      w.phrases.map(p => `<li>${escapeHTML(p.phrase)} - ${escapeHTML(p.translation)}</li>`).join('') +
-      '</ul>'
+    ? (() => {
+        const list = showAllPhrases ? w.phrases : w.phrases.slice(0, 3);
+        const items = list.map(p => `<li>${escapeHTML(p.phrase)} - ${escapeHTML(p.translation)}</li>`).join('');
+        const btn = w.phrases.length > 3
+          ? `<button id="togglePhrases" class="text-blue-500 underline ml-2">${showAllPhrases ? '收起' : '更多...'}</button>`
+          : '';
+        return '<ul class="list-disc pl-4 space-y-1">' + items + '</ul>' + btn;
+      })()
     : '';
   const backNormal = `<div>${translation}${phrases ? '<hr class="my-2">' + phrases : ''}</div>`;
   const front = card.mode === 'normal' ? escapeHTML(w.word) : translation;
@@ -134,10 +141,13 @@ function renderStudy() {
       favBtn.classList.add('bg-green-600', 'text-white');
     }
   };
+  const toggleBtn = document.getElementById('togglePhrases');
+  if (toggleBtn) toggleBtn.onclick = () => { showAllPhrases = !showAllPhrases; renderStudy(); };
   document.querySelectorAll('#buttons button').forEach(btn => {
     btn.onclick = () => {
       const q = parseInt(btn.dataset.q, 10);
       showBack = false;
+      showAllPhrases = false;
       if (q === 0) {
         studyWords.push(card);
       } else if (q === 1) {
@@ -422,6 +432,7 @@ async function continueStudy(n) {
   dailyCount += n;
   localStorage.setItem('dailyCount', dailyCount);
   localStorage.setItem('study_done', 'false');
+  showAllPhrases = false;
   await showStudy();
 }
 
