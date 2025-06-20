@@ -23,3 +23,9 @@ function api(path, options = {}) {
     return ct && ct.includes('application/json') ? res.json() : res.text();
   });
 }
+
+function validatePassword(pwd) {
+  return /^[A-Za-z0-9]{6,}$/.test(pwd)
+    ? ''
+    : '密码不能为空, 不能含特殊字符且至少6位';
+}

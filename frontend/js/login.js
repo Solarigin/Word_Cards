@@ -25,8 +25,9 @@ function init() {
   document.getElementById('login').onclick = async () => {
     const u = document.getElementById('user').value;
     const p = document.getElementById('pwd').value;
-    if (!/^[A-Za-z0-9]{6,}$/.test(p)) {
-      document.getElementById('msg').textContent = '密码不能为空, 不能含特殊字符且至少6位';
+    const err = validatePassword(p);
+    if (err) {
+      document.getElementById('msg').textContent = err;
       return;
     }
     try {
@@ -40,8 +41,9 @@ function init() {
   document.getElementById('register').onclick = async () => {
     const u = document.getElementById('user').value;
     const p = document.getElementById('pwd').value;
-    if (!/^[A-Za-z0-9]{6,}$/.test(p)) {
-      document.getElementById('msg').textContent = '密码不能为空, 不能含特殊字符且至少6位';
+    const err = validatePassword(p);
+    if (err) {
+      document.getElementById('msg').textContent = err;
       return;
     }
     try {

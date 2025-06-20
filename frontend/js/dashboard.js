@@ -413,8 +413,9 @@ function showSettings() {
     try {
       if (username) await api('/users/me', { method: 'PUT', body: { username } });
       if (oldPwd && newPwd) {
-        if (!/^[A-Za-z0-9]{6,}$/.test(newPwd)) {
-          document.getElementById('settingsMsg').textContent = '密码不能为空, 不能含特殊字符且至少6位';
+        const err = validatePassword(newPwd);
+        if (err) {
+          document.getElementById('settingsMsg').textContent = err;
           return;
         }
         await api('/users/me/password', { method: 'PUT', body: { old_password: oldPwd, new_password: newPwd } });
