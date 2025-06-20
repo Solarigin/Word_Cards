@@ -1,5 +1,5 @@
 from typing import Optional, List
-from datetime import date
+from datetime import date, datetime
 from pydantic import BaseModel
 
 class UserCreate(BaseModel):
@@ -15,6 +15,7 @@ class WordOut(BaseModel):
     word: str
     translations: list
     phrases: Optional[list] = None
+    added_at: Optional[datetime] = None
 
 class ReviewIn(BaseModel):
     quality: int
