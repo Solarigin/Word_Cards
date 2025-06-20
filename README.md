@@ -22,8 +22,9 @@ Open `frontend/index.html` in a browser or serve the directory with any HTTP ser
 whether a token exists in `localStorage`.
 It uses Tailwind CSS via CDN and communicates with the FastAPI backend running on
 `http://localhost:8000`.
-The dashboard navigation includes a link to `translate.html`. The translation page
-now shares the same Tailwind based styling and provides navigation back to the dashboard.
+The dashboard now includes a Translate button which switches the main view to a
+built-in translator. This view uses the same Tailwind styling and does not leave
+the dashboard page.
 
 Word books are stored as JSON files under the `wordbooks/` directory using the naming
 scheme `wordBook_<NAME>.json`.
