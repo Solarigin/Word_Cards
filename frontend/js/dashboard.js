@@ -10,6 +10,8 @@ let loadedBook = null;
 let wordBookData = [];
 let progress = 0;
 let favorites = new Map();
+let statsCounts = JSON.parse(localStorage.getItem('statsCounts') || '{"unknown":0,"fuzzy":0,"known":0}');
+let progressHistory = JSON.parse(localStorage.getItem('progressHistory') || '[]');
 
 async function refreshFavorites() {
   try {
@@ -129,16 +131,10 @@ function renderStudy() {
     </div>`;
   const cardOuter = document.getElementById('card');
   const cardInner = cardOuter.querySelector('.flip-card-inner');
-  cardInner.addEventListener('animationend', () => {
-    cardInner.classList.remove('animate-flip', 'animate-flip-back');
-  });
   cardOuter.onclick = () => {
-    cardInner.classList.remove('animate-flip', 'animate-flip-back');
     if (showBack) {
-      cardInner.classList.add('animate-flip-back');
       cardInner.classList.remove('flip');
     } else {
-      cardInner.classList.add('animate-flip');
       cardInner.classList.add('flip');
     }
     showBack = !showBack;
@@ -164,12 +160,18 @@ function renderStudy() {
       showAllPhrases = false;
       if (q === 0) {
         studyWords.push(card);
+        statsCounts.unknown++;
       } else if (q === 1) {
         studyWords.splice(studyIndex + 1, 0, { word: w, mode: 'rev' });
+        statsCounts.fuzzy++;
       } else if (q === 2) {
         progress++;
         saveProgress();
+        statsCounts.known++;
+        progressHistory.push({ time: Date.now(), progress });
+        localStorage.setItem('progressHistory', JSON.stringify(progressHistory));
       }
+      localStorage.setItem('statsCounts', JSON.stringify(statsCounts));
       studyIndex++;
       renderStudy();
     };
@@ -424,8 +426,19 @@ async function showFavorites() {
         text = text.replace(reg, m => `**${m}**`);
       });
       loading.classList.add('hidden');
-      content.innerHTML = marked.parse(text);
-      document.getElementById('closeModal').onclick = () => { modal.classList.add('hidden'); };
+      let tokens = text.split(/(\s+)/);
+      let idx = 0;
+      let md = '';
+      const timer = setInterval(() => {
+        md += tokens[idx++] || '';
+        content.innerHTML = marked.parse(md);
+        content.scrollTop = content.scrollHeight;
+        if (idx >= tokens.length) clearInterval(timer);
+      }, 1000 / 6);
+      document.getElementById('closeModal').onclick = () => {
+        modal.classList.add('hidden');
+        clearInterval(timer);
+      };
     } catch (err) {
       console.error(err);
       loading.classList.add('hidden');
@@ -456,12 +469,31 @@ async function showStats() {
   const learned = progress;
   const daily = dailyCount;
   const total = wordBookData.length;
+  const counts = statsCounts;
+  const history = progressHistory;
   document.getElementById('main').innerHTML = `
     <div class="grid sm:grid-cols-3 gap-4 text-center">
       <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${learned}</div><div class="text-gray-500">已学习</div></div>
       <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${daily}</div><div class="text-gray-500">Daily Words</div></div>
       <div class="shadow rounded p-4 bg-white"><div class="text-2xl font-bold">${total}</div><div class="text-gray-500">总词数</div></div>
+    </div>
+    <div class="mt-6"><canvas id="progressChart"></canvas></div>
+    <div class="mt-4 grid grid-cols-3 gap-2 text-center">
+      <div class="shadow rounded p-4 bg-white"><div class="text-xl font-bold">${counts.unknown}</div><div class="text-gray-500">不认识</div></div>
+      <div class="shadow rounded p-4 bg-white"><div class="text-xl font-bold">${counts.fuzzy}</div><div class="text-gray-500">模糊</div></div>
+      <div class="shadow rounded p-4 bg-white"><div class="text-xl font-bold">${counts.known}</div><div class="text-gray-500">认识</div></div>
     </div>`;
+  if (history.length) {
+    const ctx = document.getElementById('progressChart');
+    new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: history.map(h => new Date(h.time).toLocaleDateString()),
+        datasets: [{ label: 'Progress', data: history.map(h => h.progress), borderColor: 'blue', fill: false }]
+      },
+      options: { scales: { y: { beginAtZero: true } } }
+    });
+  }
 }
 
 function showSettings() {
@@ -480,7 +512,7 @@ function showSettings() {
         <label class="block mb-1">Username</label>
         <input id="usernameInput" class="border p-2 w-full">
       </div>
-      <button id="changePwd" class="border rounded px-4 py-2 shadow bg-blue-500 text-white">Change Password</button>
+      <button id="changePwd" class="border rounded px-4 py-2 shadow bg-gray-300">Change Password</button>
       <button id="saveSettings" class="border rounded px-4 py-2 shadow bg-blue-500 text-white">Save</button>
       <button id="deleteAccount" class="border rounded px-4 py-2 shadow bg-red-500 text-white">Delete Account</button>
       <div id="settingsMsg" class="text-green-600"></div>
