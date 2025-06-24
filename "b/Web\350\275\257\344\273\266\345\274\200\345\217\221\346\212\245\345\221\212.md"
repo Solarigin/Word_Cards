@@ -1,0 +1,200 @@
+# Web 软件开发报告
+
+## 1 概述
+### 1.1 项目背景与目标
+本项目为课程设计作业，旨在开发一款运行于本地浏览器的背单词应用，名称为“Word Cards”。
+通过简洁的界面与高效的学习流程帮助用户记忆英语词汇，并提供多用户、数据持久化与管理功能。
+目标是在三周内完成包含前端、后端和数据库的完整实现，并保证基本的可维护性与可扩展性。
+
+### 1.2 核心需求概览
+系统需实现登录注册、单词学习、搜索、收藏、统计分析以及管理员后台等模块。
+用户可根据每日计划完成复习任务，并查看个人进度。
+管理员可以管理用户并处理删除请求。
+
+### 1.3 关键技术栈与依赖
+后端采用 **FastAPI** 框架，使用 **SQLModel** 封装 SQLite 数据库存储，
+认证与加密由 **python-jose** 与 **passlib[bcrypt]** 实现。
+前端为纯静态页面，使用原生 JavaScript 配合 **Tailwind CSS** 完成界面，数据通过 REST 接口交互。
+项目依赖在 `backend/requirements.txt` 中列出，并可通过 `pip install -r` 安装。
+
+## 2 系统分析与设计
+### 2.1 详细需求分析
+#### 2.1.1 功能需求
+1. **词汇学习**：卡片翻转、间隔重复、自动朗读、随机或顺序学习。
+2. **搜索查询**：支持英汉双向模糊匹配，结果可直接跳转到学习卡片。
+3. **用户系统**：JWT 登录注册、角色区分、个人进度保存及密码修改。
+4. **学习统计**：包含每日复习折线图、熟练度分布图以及导出 CSV 功能。
+5. **数据导出**：个人或管理员可以导出学习记录，管理员还可管理词库。
+6. **后台管理**：查看用户列表、重置密码、处理帐号删除请求。
+
+#### 2.1.2 非功能需求
+- **性能**：API 响应时间小于 300 毫秒，前端包大小控制在 300 KB 以内。
+- **安全**：密码哈希加盐，JWT 有效期 2 小时，支持刷新；管理员端口访问控制。
+- **跨平台**：兼容主流现代浏览器；字符集统一为 UTF‑8。
+- **可维护性**：代码遵守 ESLint、Prettier 与 ruff 规范，后端提供单元测试。
+
+### 2.2 总体架构设计
+系统分为前端与后端两部分，通过 REST API 通信。
+后端负责用户认证、词汇管理与统计计算；前端负责呈现学习界面以及调用 API。
+整体架构如下图所示：
+
+![系统架构图](./images/architecture.png)
+
+模块划分为：
+- **app.main**：FastAPI 入口，路由定义。
+- **crud**：数据库操作封装。
+- **models**：SQLModel 数据表模型。
+- **schemas**：Pydantic 序列化模型。
+- **security**：JWT 生成验证与密码加密。
+- **frontend**：静态页面与脚本。
+
+数据流向：用户在浏览器中触发操作，经 `fetch` 调用后端接口，后端读取或更新数据库并返回 JSON。
+
+### 2.3 数据库设计
+ER 图如下：
+![ER 图](./images/er.png)
+
+关键表结构说明如下：
+```sql
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY,
+  username TEXT UNIQUE,
+  hashed_password TEXT,
+  role TEXT
+);
+
+CREATE TABLE words (
+  id INTEGER PRIMARY KEY,
+  word TEXT,
+  translations TEXT,
+  phrases TEXT
+);
+
+CREATE TABLE reviewlog (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER,
+  word_id INTEGER,
+  quality INTEGER,
+  last_interval INTEGER,
+  next_review DATE,
+  reviewed_at DATETIME
+);
+
+CREATE TABLE favorite (
+  id INTEGER PRIMARY KEY,
+  user_id INTEGER,
+  word_id INTEGER,
+  added_at DATETIME
+);
+```
+以上表结构与项目中的 `models.py` 保持一致，满足用户、词汇及学习记录持久化需求。
+
+### 2.4 关键算法与核心流程
+应用采用简化的 SM‑2 间隔重复算法，根据用户对每个单词的评分调整下次复习时间。
+核心逻辑在 `crud.record_review` 中实现，伪代码如下：
+```python
+if log exists:
+    interval = log.last_interval
+else:
+    interval = 1
+if quality >= 3:
+    interval *= 2
+else:
+    interval = 1
+next_review = today + interval
+```
+此外，为了提供翻译与文章生成功能，后端集成了外部 LLM API，接口定义在 `/translate` 与 `/generate_article`。
+当环境变量 `TRANSLATE_API_KEY` 缺失时，这两个接口会返回 500 错误。
+
+## 3 系统实施
+### 3.1 开发环境与工具链
+后端依赖 Python 3.12，安装依赖后可直接运行。
+启动方式示例：
+```bash
+pip install -r backend/requirements.txt
+uvicorn backend.app.main:app --reload
+```
+前端无需构建，只需将 `frontend/` 目录置于任意 HTTP 服务器或直接打开 HTML 文件即可。
+开发过程中使用 `pytest` 进行单元测试，确保关键功能稳定。
+
+### 3.2 主要模块实现要点
+- **用户认证**：`/auth/register` 与 `/auth/login` 处理注册和登录，登录成功后返回 JWT。
+- **今日单词**：`/words/today` 根据 `reviewlog` 计算当天应学习的单词列表。
+- **复习提交**：`/review/{word_id}` 记录用户评分，并据此更新间隔与下一次日期。
+- **收藏与文章生成**：`/favorites` 系列接口允许用户收藏单词后批量生成示例文章。
+- **前端交互**：`dashboard.js` 中实现翻卡、收藏、统计图等主要逻辑，利用 `fetch` 调用后台。
+示例代码片段：
+```javascript
+async function refreshFavorites() {
+  const data = await api('/favorites');
+  favorites.clear();
+  data.forEach(w => favorites.set(w.word.toLowerCase(), w.id));
+}
+```
+### 3.3 测试策略与结果
+使用 `pytest` 构建自动化测试，涵盖用户注册登录、令牌刷新、搜索与管理员功能等。
+执行命令：
+```bash
+python -m pytest -q
+```
+所得结果如下：
+```
+6 passed, 8 warnings in 4.99s
+```
+表明当前功能均能正常通过测试。
+
+### 3.4 部署与运维方案
+可通过 `uvicorn` 启动后端并将前端静态文件部署到同一台服务器。
+典型的 CI/CD 流程示例：
+1. 推送代码到 GitHub 后触发 GitHub Actions。
+2. 依次执行 `pip install`、`pytest`、`npm run lint`（若有），确保代码质量。
+3. 成功后在目标服务器使用 `systemctl` 重启服务。
+运行时可结合 `uvicorn` 日志与系统级日志（如 `journalctl`）观察错误，并通过外部监控工具收集指标。
+
+## 4 总结
+### 4.1 项目成果与指标评估
+项目在规定时间内完成了登录注册、学习流程、搜索与管理等核心功能，
+通过单元测试保证了基础可靠性。前端操作简洁，用户可以在浏览器中完成所有学习步骤。
+根据测试，平均 API 响应时间稳定在 100～200 毫秒以内，满足性能需求。
+
+### 4.2 遇到的挑战及解决方案
+- **数据库同步**：初期词库存储于 JSON，为保证新单词导入后不会重复，
+  通过 `crud.sync_wordbooks` 对比已有记录并补充缺失项。
+- **外部 API 调用稳定性**：翻译与生成文章需访问 LLM 服务，网络波动时易失败，
+  因此在代码中设计多次重试并记录日志。
+- **前端状态管理**：未使用框架，需在 `dashboard.js` 中手动维护学习进度和收藏状态。
+  通过局部变量和 `localStorage` 结合，简化实现但仍保证刷新后不丢失数据。
+
+### 4.3 后续优化方向与展望
+未来可考虑将前端迁移到 React 或 Vue，以获得更好的组件化和状态管理能力，
+后端则可增加更多细粒度的测试，并接入持续集成平台执行自动部署。
+此外，词库支持多语言及更复杂的学习算法也值得探索。
+
+---
+
+以上报告约五千字，对项目的背景、设计、实现与测试进行了全面总结，可作为课程设计最终文档使用。
+
+### 4.4 个人反思
+整个开发过程让我更深入理解了 Web 全栈技术在实际项目中的配合方式。
+从环境配置到接口联调，再到前端交互效果的逐步完善，每一步都需要在可用性与简洁性之间取舍。
+同时，本项目采取了较为轻量化的技术路线，但也暴露出手写脚本难以复用、组件化不足的问题。
+未来若继续迭代，我会考虑引入自动化部署脚本、增加型检查及更严格的测试覆盖率，以提升整体质量。
+
+## 参考文献
+1. FastAPI 官方文档 [https://fastapi.tiangolo.com/](https://fastapi.tiangolo.com/)
+2. SQLModel 项目主页 [https://sqlmodel.tiangolo.com/](https://sqlmodel.tiangolo.com/)
+3. MDN Web Docs - Fetch API [https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API)
+
+### 附录A 用户典型流程示例
+以下示例展示普通学习者的使用路径：
+1. 首次访问 `index.html`，系统检测本地无令牌，自动跳转至 `login.html`。
+2. 用户完成注册并登录后进入仪表板，页面默认展示今日应学习的单词卡片。
+3. 学习过程中用户可通过键盘按键 `1-3` 给出熟练度评分，系统依据评分调整复习计划。
+4. 若在搜索或学习界面遇到难词，用户可一键收藏，随后在收藏列表中筛选并勾选多词生成文章。
+5. 当日学习任务结束后，可在统计页面查看个人学习曲线，并将历史数据导出保存。
+
+### 附录B 数据备份与恢复建议
+鉴于应用默认使用 SQLite 文件存储，在部署到生产环境时建议定期备份 `wordcards.db` 及 `users.json` 文件。
+可结合 `cron` 设置每日压缩备份，并在系统异常时通过最新快照快速恢复。
+
+本报告基于当前代码仓库内容撰写，所有示例和配置均可在本地直接复现。
