@@ -1,4 +1,4 @@
-// Dashboard page script
+// Main logic for the user dashboard including study, search and settings.
 
 let studyWords = [];
 let studyIndex = 0;
@@ -16,6 +16,7 @@ let progressHistory = JSON.parse(localStorage.getItem('progressHistory') || '[]'
 let speakOnLoad = localStorage.getItem('speakOnLoad') !== 'false';
 let shuffleStudy = localStorage.getItem('shuffleStudy') === 'true';
 
+// Retrieve the user's favorite words from the server.
 async function refreshFavorites() {
   try {
     const data = await api('/favorites');
@@ -24,6 +25,7 @@ async function refreshFavorites() {
   } catch {}
 }
 
+// Keyboard shortcuts for grading words during study mode.
 function handleKey(e) {
   if (['1', '2', '3'].includes(e.key)) {
     const btn = document.querySelector(`#buttons button[data-q="${parseInt(e.key, 10) - 1}"]`);
@@ -31,6 +33,7 @@ function handleKey(e) {
   }
 }
 
+// Load the selected word book from disk if not already in memory.
 async function ensureWordBook() {
   currentBook = localStorage.getItem('wordBook') || 'TEST';
   if (loadedBook !== currentBook) {
@@ -39,19 +42,23 @@ async function ensureWordBook() {
   }
 }
 
+// Persist current progress for the active word book.
 function saveProgress() {
   localStorage.setItem('progress_' + currentBook, progress);
 }
 
+// Fetch a word book JSON file.
 async function loadWordBook(name) {
   return api('/wordbook/' + name);
 }
 
+// Logout button handler.
 function logout() {
   localStorage.removeItem('token');
   window.location.href = 'login.html';
 }
 
+// Display the flashcard-style study interface.
 async function showStudy() {
   dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
   speakOnLoad = localStorage.getItem('speakOnLoad') !== 'false';
@@ -80,6 +87,7 @@ async function showStudy() {
   renderStudy();
 }
 
+// Render the current flashcard and grading buttons.
 function renderStudy() {
   const card = studyWords[studyIndex];
   const main = document.getElementById('main');
@@ -212,6 +220,7 @@ function renderStudy() {
 }
 
 async function showSearch() {
+  // Word lookup view with pagination and modal display.
   const main = document.getElementById('main');
   main.innerHTML = `
     <div class="flex flex-col gap-4 max-w-xl mx-auto">
@@ -298,6 +307,7 @@ async function showSearch() {
 }
 
 async function showTranslate() {
+  // Simple translation UI that calls the backend /translate endpoint.
   const main = document.getElementById('main');
   main.innerHTML = `
     <div class="bg-white rounded shadow p-6 w-full mx-auto space-y-4 max-w-2xl">
@@ -368,6 +378,7 @@ async function showTranslate() {
 }
 
 function showWordModal(w) {
+  // Show detailed information about a word in a modal dialog.
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
   const isFav = favorites.has(w.word.toLowerCase());
@@ -419,6 +430,7 @@ function showWordModal(w) {
 }
 
 async function addFavoriteByWord(word) {
+  // Helper used when the word ID is not known locally.
   try {
     const res = await api('/search?q=' + encodeURIComponent(word));
     const item = res.find(w => w.word.toLowerCase() === word.toLowerCase());
@@ -432,10 +444,13 @@ async function addFavoriteByWord(word) {
 }
 
 function speak(text) {
+  // Use the browser speech synthesis API to pronounce a word.
   window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
 
 async function showFavorites() {
+  // Manage and browse the user's list of favorite words.
+  // View listing all favorite words with search and article generation.
   const main = document.getElementById('main');
   main.innerHTML = `
     <div class="flex flex-col gap-2 max-w-xl mx-auto">
@@ -559,6 +574,7 @@ async function showFavorites() {
 }
 
 async function continueStudy(n) {
+  // Allow the user to study additional words beyond the daily count.
   dailyCount += n;
   localStorage.setItem('dailyCount', dailyCount);
   localStorage.setItem('study_done', 'false');
@@ -567,6 +583,7 @@ async function continueStudy(n) {
 }
 
 async function showStats() {
+  // Display learning statistics and progress chart.
   await ensureWordBook();
   progress = parseInt(localStorage.getItem('progress_' + currentBook), 10) || 0;
   const learned = progress;
@@ -630,6 +647,7 @@ async function showStats() {
 }
 
 function showSettings() {
+  // Settings screen for various user preferences.
   const main = document.getElementById('main');
   main.innerHTML = `
     <div class="flex flex-col gap-4 max-w-sm mx-auto">
@@ -737,6 +755,7 @@ function showSettings() {
 }
 
 function init() {
+  // Entry point after DOM is ready; route to dashboard features.
   if (!localStorage.getItem('token')) {
     window.location.href = 'login.html';
     return;

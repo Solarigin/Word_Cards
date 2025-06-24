@@ -1,3 +1,4 @@
+// Perform a login request using a form POST.
 function loginRequest(username, password) {
   const form = new URLSearchParams();
   form.append('username', username);
@@ -6,6 +7,7 @@ function loginRequest(username, password) {
     .then(res => res.ok ? res.json() : Promise.reject());
 }
 
+// Store token and redirect to the appropriate dashboard after login.
 async function afterAuth(token) {
   localStorage.setItem('token', token);
   try {
@@ -17,10 +19,12 @@ async function afterAuth(token) {
   }
 }
 
+// Register a new account via the API.
 function registerRequest(username, password) {
   return api('/auth/register', { method: 'POST', body: { username, password } });
 }
 
+// Wire up the login and register buttons once the page loads.
 function init() {
   document.getElementById('login').onclick = async () => {
     const u = document.getElementById('user').value;

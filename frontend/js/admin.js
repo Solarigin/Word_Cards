@@ -1,9 +1,12 @@
+// Admin panel logic for listing users and deletion requests.
+// Clear auth info and return to the login screen.
 function logout() {
   localStorage.removeItem('token');
   localStorage.removeItem('role');
   window.location.href = 'login.html';
 }
 
+// Fetch user list and render management table.
 async function loadUsers() {
   try {
     const data = await api('/admin/users');
@@ -36,6 +39,7 @@ async function loadUsers() {
   }
 }
 
+// Display pending account deletion requests.
 async function loadDeletions() {
   try {
     const data = await api('/admin/deletion_requests');
@@ -66,6 +70,7 @@ async function loadDeletions() {
   }
 }
 
+// Initial page setup and navigation binding.
 function init() {
   if (!localStorage.getItem('token')) {
     window.location.href = 'login.html';

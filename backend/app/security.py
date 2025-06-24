@@ -1,3 +1,5 @@
+"""Password hashing and JWT helper utilities."""
+
 from passlib.context import CryptContext
 from jose import jwt
 from datetime import datetime, timedelta, UTC
@@ -7,23 +9,34 @@ import os
 # be provided via the environment. When unset we generate a random key so that
 # each development run gets a unique value.
 import secrets
+
 SECRET_KEY = os.getenv("SECRET_KEY") or secrets.token_urlsafe(32)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 120
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+
 def get_password_hash(password: str) -> str:
+    """Return a bcrypt hash for the given plaintext password."""
     return pwd_context.hash(password)
 
+
 def verify_password(password: str, hashed: str) -> bool:
+    """Verify *password* against an existing bcrypt hash."""
     return pwd_context.verify(password, hashed)
 
+
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
+    """Create a signed JWT token embedding *data*."""
     to_encode = data.copy()
-    expire = datetime.now(UTC) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expire = datetime.now(UTC) + (
+        expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    )
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+
 def decode_token(token: str):
+    """Decode a JWT token and return the payload."""
     return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
