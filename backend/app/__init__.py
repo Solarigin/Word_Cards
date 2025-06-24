@@ -1,1 +1,1 @@
-"""Application subpackage containing FastAPI code."""
+"""包含 FastAPI 代码的子包。"""

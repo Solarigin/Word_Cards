@@ -37,7 +37,7 @@ def test_refresh_and_search():
     new_token = r_refresh.json()["access_token"]
     assert new_token
 
-    # search by Chinese translation
+    # 通过中文释义搜索
     headers = auth_header(new_token)
     r_search = client.get("/search", params={"q": "吸收"}, headers=headers)
     assert r_search.status_code == 200

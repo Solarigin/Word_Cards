@@ -1,4 +1,4 @@
-"""Pydantic models used for request and response bodies."""
+"""用于请求和响应数据的 Pydantic 模型。"""
 
 from typing import Optional, List
 from datetime import date, datetime
@@ -6,21 +6,21 @@ from pydantic import BaseModel
 
 
 class UserCreate(BaseModel):
-    """Data required to register a new user."""
+    """注册新用户所需的数据。"""
 
     username: str
     password: str
 
 
 class Token(BaseModel):
-    """JWT access token returned after authentication."""
+    """认证后返回的 JWT 访问令牌。"""
 
     access_token: str
     token_type: str = "bearer"
 
 
 class WordOut(BaseModel):
-    """Word information sent to the frontend."""
+    """发送给前端的单词信息。"""
 
     id: int
     word: str
@@ -30,13 +30,13 @@ class WordOut(BaseModel):
 
 
 class ReviewIn(BaseModel):
-    """Quality score sent when reviewing a word."""
+    """复习单词时提交的质量评分。"""
 
     quality: int
 
 
 class StatsOut(BaseModel):
-    """Aggregated statistics for the current user."""
+    """当前用户的汇总统计数据。"""
 
     reviewed: int
     due: int
@@ -44,7 +44,7 @@ class StatsOut(BaseModel):
 
 
 class UserOut(BaseModel):
-    """Public user information."""
+    """公开的用户信息。"""
 
     id: int
     username: str
@@ -52,26 +52,26 @@ class UserOut(BaseModel):
 
 
 class UserUpdate(BaseModel):
-    """Payload for updating a username."""
+    """更新用户名的请求体。"""
 
     username: str
 
 
 class PasswordUpdate(BaseModel):
-    """Payload for changing a password."""
+    """修改密码的请求体。"""
 
     old_password: str
     new_password: str
 
 
 class TranslationRequest(BaseModel):
-    """Request body for the /translate endpoint."""
+    """/translate 接口的请求体。"""
 
     text: str
     lang: str
 
 
 class ArticleRequest(BaseModel):
-    """Request body for generating an article from favorite words."""
+    """根据收藏单词生成文章的请求体。"""
 
     word_ids: List[int]

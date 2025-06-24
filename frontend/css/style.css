@@ -1,4 +1,4 @@
-/* Basic styling and animations for the Word Cards frontend */
+/* Word Cards 前端的基础样式与动画 */
 
 @keyframes fadeInUp {
   from { opacity: 0; transform: translateY(20px); }
@@ -14,7 +14,7 @@ body {
 }
 
 .navbar {
-  background-color: rgba(31, 41, 55, 0.85); /* gray-800 with opacity */
+  background-color: rgba(31, 41, 55, 0.85); /* gray-800 半透明 */
   backdrop-filter: blur(6px);
   color: white;
   padding: 0.75rem 1rem;
@@ -114,12 +114,12 @@ body {
   transform: translateY(-4px) scale(1.02);
   box-shadow: 0 4px 8px rgb(0 0 0 / 0.15);
 }
-/* Rounded inputs */
+/* 圆角输入框 */
 input, textarea, select {
   border-radius: 0.5rem !important;
 }
 
-/* Sidebar navigation */
+/* 侧边栏导航 */
 .sidebar {
   background-color: rgba(255, 255, 255, 0.9);
   color: #1f2937;
