@@ -1,1 +1,1 @@
-"""Backend package for the Word Cards application."""
+"""Word Cards 应用的后端包。"""

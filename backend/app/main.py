@@ -1,10 +1,8 @@
-"""FastAPI application defining the REST API for Word Cards.
+"""提供 Word Cards REST API 的 FastAPI 应用。
 
-This module wires together the CRUD helpers, authentication logic and
-models defined elsewhere in the backend package.  Endpoints are defined for
-user management, spaced-repetition review, translation and more.  Only
-comments are added compared to the original implementation so behaviour
-remains unchanged.
+该模块整合了 CRUD 辅助函数、认证逻辑以及其他模型，
+定义了用户管理、间隔复习、翻译等接口。仅添加了注释，
+行为与原实现保持一致。
 """
 
 from fastapi import FastAPI, Depends, HTTPException, status, Response
@@ -41,15 +39,14 @@ from .schemas import (
 from . import crud, security
 from .security import create_access_token, decode_token
 
-# Load variables from a local .env file if present
+# 如存在本地 .env 文件则加载其中的变量
 load_dotenv()
 
 app = FastAPI(title="Word Cards")
 logger = logging.getLogger("uvicorn.error")
 
-# Allow frontend development server to access the API
-# Allow all origins for simplicity so that the frontend can access the API
-# when running on a different port during development.
+# 允许前端开发服务器访问 API
+# 为了方便在开发环境不同端口访问，放开所有来源。
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -60,17 +57,15 @@ app.add_middleware(
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
-# Translation API configuration. Set TRANSLATE_API_KEY in the environment to
-# enable translation features.
+# 翻译 API 配置，需在环境变量中设置 TRANSLATE_API_KEY 才能启用。
 TRANSLATE_API_URL = "https://api.siliconflow.cn/v1/chat/completions"
 TRANSLATE_API_KEY = os.environ.get("TRANSLATE_API_KEY")
 
 init_db()
 
-# import words from json on first run
+# 首次运行时从 JSON 导入单词
 
-# When running for the first time create the SQLite DB file and seed it with
-# words from the default word book.
+# 如果是第一次运行，创建 SQLite 数据库文件并用默认词书初始化。
 if not os.path.exists("wordcards.db"):
     init_db()
 
@@ -79,7 +74,7 @@ DEFAULT_BOOK = os.environ.get("WORDBOOK_NAME", "TEST")
 
 with get_session() as session:
     if not session.exec(select(Word)).first():
-        # Load the bundled word book JSON and populate the Words table.
+        # 读取内置词书 JSON 并填充 Words 表
         book_file = os.path.join(WORDBOOK_DIR, f"wordBook_{DEFAULT_BOOK}.json")
         if not os.path.exists(book_file):
             book_file = os.path.join(
@@ -96,18 +91,18 @@ with get_session() as session:
                 session.add(word)
             session.commit()
 
-    # ensure default admin account exists
+    # 确保默认管理员账户存在
     crud.ensure_default_admin()
-    # sync database with word books so new words get IDs
+    # 与词书同步以便新单词获得 ID
     crud.sync_wordbooks(WORDBOOK_DIR)
 
 
 @app.post("/auth/register", response_model=Token)
 def register(user: UserCreate):
-    """Create a new user account and return an access token."""
+    """创建新用户并返回访问令牌。"""
     u = crud.create_user(user.username, user.password)
     if not u:
-        # username uniqueness is enforced at the DB level
+        # 数据库层面已保证用户名唯一
         raise HTTPException(status_code=400, detail="Username taken")
     access = create_access_token({"sub": str(u.id)})
     return Token(access_token=access)
@@ -115,7 +110,7 @@ def register(user: UserCreate):
 
 @app.post("/auth/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
-    """Authenticate the user and issue a JWT access token."""
+    """验证用户并签发 JWT 访问令牌。"""
     user = crud.authenticate_user(form_data.username, form_data.password)
     if not user:
         raise HTTPException(
@@ -127,7 +122,7 @@ def login(form_data: OAuth2PasswordRequestForm = Depends()):
 
 @app.post("/auth/refresh", response_model=Token)
 def refresh(token: str = Depends(oauth2_scheme)):
-    """Issue a new access token when the current one is still valid."""
+    """在现有令牌仍然有效时颁发新的访问令牌。"""
     try:
         payload = decode_token(token)
         user_id: str = payload.get("sub")
@@ -140,7 +135,7 @@ def refresh(token: str = Depends(oauth2_scheme)):
 
 
 def get_current_user(token: str = Depends(oauth2_scheme)):
-    """Helper dependency that returns the current authenticated user."""
+    """返回当前已认证的用户的依赖。"""
     credentials_exception = HTTPException(
         status_code=401, detail="Could not validate credentials"
     )
@@ -162,7 +157,7 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
 def words_today(
     limit: int | None = None, current_user: User = Depends(get_current_user)
 ):
-    """Return today's due words for the current user."""
+    """返回当前用户今日应复习的单词。"""
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     reviewed_today = 0
     if limit:
@@ -197,14 +192,14 @@ def words_today(
 def review_word(
     word_id: int, info: ReviewIn, current_user: User = Depends(get_current_user)
 ):
-    """Record a review quality score for the given word."""
+    """记录对指定单词的复习质量评分。"""
     crud.record_review(current_user.id, word_id, info.quality)
     return {"status": "ok"}
 
 
 @app.get("/search", response_model=List[WordOut])
 def search(q: str, current_user: User = Depends(get_current_user)):
-    """Search for words containing *q* in their spelling or translation."""
+    """搜索拼写或翻译中包含 *q* 的单词。"""
     words = crud.search_words(q)
     result = []
     for w in words:
@@ -290,7 +285,7 @@ def list_wordbooks():
 
 @app.get("/wordbook/{name}")
 def get_wordbook(name: str):
-    """Return the raw word list for the given word book."""
+    """返回指定词书的原始单词列表。"""
     filename = os.path.join(WORDBOOK_DIR, f"wordBook_{name}.json")
     if not os.path.exists(filename):
         raise HTTPException(status_code=404, detail="Word book not found")
@@ -301,7 +296,7 @@ def get_wordbook(name: str):
 
 @app.get("/admin/users")
 def admin_users(current_user: User = Depends(get_current_user)):
-    """List all registered users (admin only)."""
+    """列出所有注册用户（仅管理员可用）。"""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
     users = crud.list_users()
@@ -312,7 +307,7 @@ def admin_users(current_user: User = Depends(get_current_user)):
 def admin_reset(
     user_id: int, password: str, current_user: User = Depends(get_current_user)
 ):
-    """Reset the password for a specific user (admin only)."""
+    """为指定用户重置密码（仅管理员）。"""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
     crud.reset_password(user_id, password)
@@ -321,7 +316,7 @@ def admin_reset(
 
 @app.get("/users/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):
-    """Return the current logged in user's info."""
+    """返回当前登录用户的信息。"""
     return UserOut(
         id=current_user.id, username=current_user.username, role=current_user.role
     )
@@ -329,7 +324,7 @@ def get_me(current_user: User = Depends(get_current_user)):
 
 @app.put("/users/me", response_model=UserOut)
 def update_me(info: UserUpdate, current_user: User = Depends(get_current_user)):
-    """Update the username for the current account."""
+    """更新当前账户的用户名。"""
     with get_session() as session:
         user = session.get(User, current_user.id)
         user.username = info.username
@@ -343,7 +338,7 @@ def update_me(info: UserUpdate, current_user: User = Depends(get_current_user)):
 def change_password(
     info: PasswordUpdate, current_user: User = Depends(get_current_user)
 ):
-    """Change the current user's password."""
+    """修改当前用户的密码。"""
     with get_session() as session:
         user = session.get(User, current_user.id)
         if not security.verify_password(info.old_password, user.hashed_password):
@@ -354,14 +349,14 @@ def change_password(
 
 @app.post("/users/request_delete")
 def request_delete(current_user: User = Depends(get_current_user)):
-    """Request deletion of the current account."""
+    """请求删除当前账户。"""
     crud.create_deletion_request(current_user.id)
     return {"status": "ok"}
 
 
 @app.get("/admin/deletion_requests")
 def admin_list_deletions(current_user: User = Depends(get_current_user)):
-    """Retrieve all pending deletion requests (admin only)."""
+    """获取所有待处理的删除请求（仅管理员）。"""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
     reqs = crud.list_deletion_requests()
@@ -382,7 +377,7 @@ def admin_list_deletions(current_user: User = Depends(get_current_user)):
 
 @app.post("/admin/deletion_requests/{user_id}/approve")
 def admin_approve_delete(user_id: int, current_user: User = Depends(get_current_user)):
-    """Approve a user's deletion request and remove the account."""
+    """批准用户的删除请求并移除账户。"""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
     ok = crud.delete_user(user_id)
@@ -391,10 +386,10 @@ def admin_approve_delete(user_id: int, current_user: User = Depends(get_current_
     return {"status": "deleted"}
 
 
-# Simple translation endpoint using external API
+# 使用外部 API 的简单翻译接口
 @app.post("/translate")
 async def translate(payload: TranslationRequest):
-    """Translate arbitrary text via the external LLM service."""
+    """通过外部 LLM 服务翻译任意文本。"""
     text = payload.text
     lang = payload.lang
     if not TRANSLATE_API_KEY:
@@ -455,14 +450,14 @@ async def translate(payload: TranslationRequest):
 
 @app.post("/favorites/{word_id}")
 def add_fav(word_id: int, current_user: User = Depends(get_current_user)):
-    """Add a word to the user's favorites list."""
+    """将单词加入用户的收藏列表。"""
     crud.add_favorite(current_user.id, word_id)
     return {"status": "ok"}
 
 
 @app.delete("/favorites/{word_id}")
 def remove_fav(word_id: int, current_user: User = Depends(get_current_user)):
-    """Remove a word from favorites."""
+    """从收藏中移除单词。"""
     ok = crud.remove_favorite(current_user.id, word_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Not found")
@@ -471,7 +466,7 @@ def remove_fav(word_id: int, current_user: User = Depends(get_current_user)):
 
 @app.get("/favorites", response_model=List[WordOut])
 def list_fav(q: str | None = None, current_user: User = Depends(get_current_user)):
-    """List the current user's favorite words."""
+    """列出当前用户收藏的单词。"""
     words = crud.list_favorites(current_user.id, q)
     result = []
     for w, added_at in words:
@@ -491,8 +486,8 @@ def list_fav(q: str | None = None, current_user: User = Depends(get_current_user
 async def generate_article(
     payload: ArticleRequest, current_user: User = Depends(get_current_user)
 ):
-    """Generate a short passage using the provided word list."""
-    # Fetch the words from the database
+    """使用提供的单词列表生成简短段落。"""
+    # 从数据库获取单词
     with get_session() as session:
         stmt = select(Word).where(Word.id.in_(payload.word_ids))
         words = [w.word for w in session.exec(stmt)]
@@ -502,7 +497,7 @@ async def generate_article(
     if len(words) > 30:
         raise HTTPException(status.HTTP_400_BAD_REQUEST, "Too many words (limit 30)")
 
-    # Compose prompts for the language model
+    # 构造语言模型的提示词
     system_prompt = (
         "You are a helpful writing assistant. "
         "When the user provides a list of words, compose a ~100-word passage "
@@ -518,7 +513,7 @@ async def generate_article(
             status.HTTP_500_INTERNAL_SERVER_ERROR, "API KEY not configured"
         )
 
-    # Call the external LLM service with retries
+    # 调用外部 LLM 服务并重试
     async with httpx.AsyncClient(timeout=20) as client:
         backoff = [0.5, 1.5, 3.0]
         for delay in backoff:

@@ -1,4 +1,4 @@
-// Perform a login request using a form POST.
+// 使用表单 POST 执行登录请求。
 function loginRequest(username, password) {
   const form = new URLSearchParams();
   form.append('username', username);
@@ -7,7 +7,7 @@ function loginRequest(username, password) {
     .then(res => res.ok ? res.json() : Promise.reject());
 }
 
-// Store token and redirect to the appropriate dashboard after login.
+// 存储令牌并在登录后跳转到相应的页面。
 async function afterAuth(token) {
   localStorage.setItem('token', token);
   try {
@@ -19,12 +19,12 @@ async function afterAuth(token) {
   }
 }
 
-// Register a new account via the API.
+// 通过 API 注册新账户。
 function registerRequest(username, password) {
   return api('/auth/register', { method: 'POST', body: { username, password } });
 }
 
-// Wire up the login and register buttons once the page loads.
+// 页面加载后绑定登录和注册按钮。
 function init() {
   document.getElementById('login').onclick = async () => {
     const u = document.getElementById('user').value;

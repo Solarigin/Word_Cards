@@ -1,12 +1,12 @@
-// Admin panel logic for listing users and deletion requests.
-// Clear auth info and return to the login screen.
+// 管理员面板逻辑，包含用户列表和删除请求。
+// 清除认证信息并返回登录页。
 function logout() {
   localStorage.removeItem('token');
   localStorage.removeItem('role');
   window.location.href = 'login.html';
 }
 
-// Fetch user list and render management table.
+// 获取用户列表并渲染管理表格。
 async function loadUsers() {
   try {
     const data = await api('/admin/users');
@@ -39,7 +39,7 @@ async function loadUsers() {
   }
 }
 
-// Display pending account deletion requests.
+// 显示待处理的账户删除请求。
 async function loadDeletions() {
   try {
     const data = await api('/admin/deletion_requests');
@@ -70,7 +70,7 @@ async function loadDeletions() {
   }
 }
 
-// Initial page setup and navigation binding.
+// 页面初始化及导航绑定。
 function init() {
   if (!localStorage.getItem('token')) {
     window.location.href = 'login.html';

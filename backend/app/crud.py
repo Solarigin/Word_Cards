@@ -1,8 +1,7 @@
-"""Database helper functions used by the FastAPI routes.
+"""FastAPI 路由使用的数据库辅助函数。
 
-This module abstracts common CRUD operations such as creating users,
-recording review history and maintaining favorites.  The logic is kept
-framework agnostic so it can be tested independently of the API layer.
+该模块封装创建用户、记录复习历史和维护收藏等常见 CRUD 操作，
+逻辑与框架无关，便于独立于 API 层进行测试。
 """
 
 from sqlmodel import select
@@ -17,7 +16,7 @@ from .security import get_password_hash, verify_password
 
 
 def create_user(username: str, password: str, role: str = "user"):
-    """Create a new user and persist it to the database and a JSON file."""
+    """创建新用户并保存到数据库和 JSON 文件。"""
     with get_session() as session:
         user = User(
             username=username, hashed_password=get_password_hash(password), role=role
@@ -27,7 +26,7 @@ def create_user(username: str, password: str, role: str = "user"):
             session.commit()
             session.refresh(user)
 
-            # also store basic user info in users.json for simple persistence
+            # 同时将基本用户信息写入 users.json 便于简单持久化
             try:
                 with open("users.json", "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -44,7 +43,7 @@ def create_user(username: str, password: str, role: str = "user"):
 
 
 def authenticate_user(username: str, password: str):
-    """Return the user if the credentials are valid, otherwise ``None``."""
+    """凭据正确时返回用户对象，否则返回 ``None``。"""
     with get_session() as session:
         statement = select(User).where(User.username == username)
         user = session.exec(statement).first()
@@ -54,8 +53,7 @@ def authenticate_user(username: str, password: str):
 
 
 def get_due_words(user_id: int, limit: int | None = None):
-    """Return words due for review. If *limit* is provided, only that many words
-    are returned."""
+    """获取需要复习的单词，若提供 *limit* 则只返回相应数量。"""
     today = date.today()
     with get_session() as session:
         statement = select(Word, ReviewLog).join(
@@ -73,7 +71,7 @@ def get_due_words(user_id: int, limit: int | None = None):
 
 
 def record_review(user_id: int, word_id: int, quality: int):
-    """Update the spaced repetition log for a word review."""
+    """更新单词复习的间隔重复记录。"""
     with get_session() as session:
         log = session.exec(
             select(ReviewLog).where(
@@ -83,7 +81,7 @@ def record_review(user_id: int, word_id: int, quality: int):
         interval = 1
         if log:
             interval = log.last_interval
-        # simple spaced repetition: if quality >=3 double interval else reset
+        # 简单的间隔重复：quality>=3 时间隔翻倍，否则重置
         if quality >= 3:
             interval = interval * 2
         else:
@@ -109,8 +107,7 @@ def record_review(user_id: int, word_id: int, quality: int):
 
 
 def search_words(query: str):
-    """Search words case-insensitively and return ones starting with the query
-    first."""
+    """不区分大小写搜索单词，优先返回以查询开头的结果。"""
     q = query.lower()
     with get_session() as session:
         starts = select(Word).where(func.lower(Word.word).like(f"{q}%"))
@@ -128,20 +125,20 @@ def search_words(query: str):
 
 
 def get_review_logs(user_id: int):
-    """Return all review log entries for the given user."""
+    """返回指定用户的所有复习记录。"""
     with get_session() as session:
         statement = select(ReviewLog).where(ReviewLog.user_id == user_id)
         return session.exec(statement).all()
 
 
 def list_users():
-    """Return all user objects."""
+    """返回所有用户对象。"""
     with get_session() as session:
         return session.exec(select(User)).all()
 
 
 def reset_password(user_id: int, new_password: str):
-    """Update the stored password hash for the user."""
+    """更新用户的密码哈希。"""
     with get_session() as session:
         user = session.get(User, user_id)
         if not user:
@@ -153,7 +150,7 @@ def reset_password(user_id: int, new_password: str):
 
 
 def ensure_default_admin():
-    """Create the initial admin account if it doesn't exist."""
+    """如不存在则创建初始管理员账户。"""
     with get_session() as session:
         exists = session.exec(select(User).where(User.username == "Admin")).first()
         if not exists:
@@ -170,7 +167,7 @@ def ensure_default_admin():
 
 
 def create_deletion_request(user_id: int):
-    """Record that a user wants their account removed."""
+    """记录用户希望删除账户的请求。"""
     with get_session() as session:
         exists = session.exec(
             select(DeletionRequest).where(DeletionRequest.user_id == user_id)
@@ -185,13 +182,13 @@ def create_deletion_request(user_id: int):
 
 
 def list_deletion_requests():
-    """Return all outstanding deletion requests."""
+    """返回所有未处理的删除请求。"""
     with get_session() as session:
         return session.exec(select(DeletionRequest)).all()
 
 
 def delete_user(user_id: int):
-    """Fully remove a user and all related data."""
+    """彻底删除用户及其所有相关数据。"""
     with get_session() as session:
         user = session.get(User, user_id)
         if not user:
@@ -203,7 +200,7 @@ def delete_user(user_id: int):
         session.delete(user)
         session.commit()
 
-        # remove from users.json if present
+        # 如果存在则从 users.json 中移除
         try:
             with open("users.json", "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -216,7 +213,7 @@ def delete_user(user_id: int):
 
 
 def add_favorite(user_id: int, word_id: int):
-    """Mark a word as a favorite for the user."""
+    """将单词标记为用户的收藏。"""
     with get_session() as session:
         exists = session.exec(
             select(Favorite).where(
@@ -233,7 +230,7 @@ def add_favorite(user_id: int, word_id: int):
 
 
 def remove_favorite(user_id: int, word_id: int) -> bool:
-    """Delete a favorite mapping."""
+    """删除收藏关系。"""
     with get_session() as session:
         fav = session.exec(
             select(Favorite).where(
@@ -248,7 +245,7 @@ def remove_favorite(user_id: int, word_id: int) -> bool:
 
 
 def list_favorites(user_id: int, q: str | None = None):
-    """Return a user's favorites, optionally filtered by ``q``."""
+    """返回用户的收藏列表，可按 ``q`` 过滤。"""
     with get_session() as session:
         statement = (
             select(Word, Favorite.added_at)
@@ -266,7 +263,7 @@ def list_favorites(user_id: int, q: str | None = None):
 
 
 def sync_wordbooks(directory: str):
-    """Add any words found in *directory* that are missing from the database."""
+    """将 *directory* 中缺失的单词补充进数据库。"""
     if not directory or not os.path.exists(directory):
         return
 

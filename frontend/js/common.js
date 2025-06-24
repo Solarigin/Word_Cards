@@ -1,7 +1,7 @@
-// Base URL of the backend API. Update if the server is hosted elsewhere.
+// 后端 API 的基础地址，如部署在其他位置请修改。
 const API_URL = 'http://localhost:8000';
 
-// Simple HTML escaping to avoid XSS when rendering user supplied text.
+// 简单的 HTML 转义，防止渲染用户输入时出现 XSS。
 function escapeHTML(str) {
   return str
     .replace(/&/g, '&amp;')
@@ -11,7 +11,7 @@ function escapeHTML(str) {
     .replace(/'/g, '&#39;');
 }
 
-// Generic helper for calling the backend API with the stored token.
+// 通用的后端 API 调用封装，会带上存储的令牌。
 function api(path, options = {}) {
   options.headers = options.headers || {};
   const token = localStorage.getItem('token');
@@ -27,7 +27,7 @@ function api(path, options = {}) {
   });
 }
 
-// Password format check used on the login/register screens.
+// 登录/注册界面使用的密码格式校验。
 function validatePassword(pwd) {
   return /^[A-Za-z0-9]{6,}$/.test(pwd)
     ? ''

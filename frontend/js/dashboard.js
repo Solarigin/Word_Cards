@@ -1,4 +1,4 @@
-// Main logic for the user dashboard including study, search and settings.
+// 用户仪表板的主要逻辑，包含学习、搜索和设置功能。
 
 let studyWords = [];
 let studyIndex = 0;
@@ -16,7 +16,7 @@ let progressHistory = JSON.parse(localStorage.getItem('progressHistory') || '[]'
 let speakOnLoad = localStorage.getItem('speakOnLoad') !== 'false';
 let shuffleStudy = localStorage.getItem('shuffleStudy') === 'true';
 
-// Retrieve the user's favorite words from the server.
+// 从服务器获取用户的收藏单词。
 async function refreshFavorites() {
   try {
     const data = await api('/favorites');
@@ -25,7 +25,7 @@ async function refreshFavorites() {
   } catch {}
 }
 
-// Keyboard shortcuts for grading words during study mode.
+// 学习模式下评分的键盘快捷键。
 function handleKey(e) {
   if (['1', '2', '3'].includes(e.key)) {
     const btn = document.querySelector(`#buttons button[data-q="${parseInt(e.key, 10) - 1}"]`);
@@ -33,7 +33,7 @@ function handleKey(e) {
   }
 }
 
-// Load the selected word book from disk if not already in memory.
+// 如未加载则从磁盘读取选择的词书。
 async function ensureWordBook() {
   currentBook = localStorage.getItem('wordBook') || 'TEST';
   if (loadedBook !== currentBook) {
@@ -42,23 +42,23 @@ async function ensureWordBook() {
   }
 }
 
-// Persist current progress for the active word book.
+// 保存当前词书的学习进度。
 function saveProgress() {
   localStorage.setItem('progress_' + currentBook, progress);
 }
 
-// Fetch a word book JSON file.
+// 获取词书 JSON 文件。
 async function loadWordBook(name) {
   return api('/wordbook/' + name);
 }
 
-// Logout button handler.
+// 退出登录按钮的处理函数。
 function logout() {
   localStorage.removeItem('token');
   window.location.href = 'login.html';
 }
 
-// Display the flashcard-style study interface.
+// 显示卡片式学习界面。
 async function showStudy() {
   dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
   speakOnLoad = localStorage.getItem('speakOnLoad') !== 'false';
@@ -68,7 +68,7 @@ async function showStudy() {
   progress = parseInt(localStorage.getItem('progress_' + currentBook), 10) || 0;
   if (localStorage.getItem('study_done') === 'true') {
     studyWords = [];
-    studyIndex = 1; // force "All done" message
+    studyIndex = 1; // 强制显示“已完成”提示
   } else {
     let remaining = wordBookData.slice(progress);
     if (shuffleStudy) {
@@ -87,7 +87,7 @@ async function showStudy() {
   renderStudy();
 }
 
-// Render the current flashcard and grading buttons.
+// 渲染当前学习卡片和评分按钮。
 function renderStudy() {
   const card = studyWords[studyIndex];
   const main = document.getElementById('main');
@@ -220,7 +220,7 @@ function renderStudy() {
 }
 
 async function showSearch() {
-  // Word lookup view with pagination and modal display.
+  // 单词查询视图，带分页和弹窗显示。
   const main = document.getElementById('main');
   main.innerHTML = `
     <div class="flex flex-col gap-4 max-w-xl mx-auto">
@@ -307,7 +307,7 @@ async function showSearch() {
 }
 
 async function showTranslate() {
-  // Simple translation UI that calls the backend /translate endpoint.
+  // 调用后端 /translate 接口的简单翻译界面。
   const main = document.getElementById('main');
   main.innerHTML = `
     <div class="bg-white rounded shadow p-6 w-full mx-auto space-y-4 max-w-2xl">
@@ -378,7 +378,7 @@ async function showTranslate() {
 }
 
 function showWordModal(w) {
-  // Show detailed information about a word in a modal dialog.
+  // 在模态框中显示单词的详细信息。
   const modal = document.getElementById('modal');
   const content = document.getElementById('modalContent');
   const isFav = favorites.has(w.word.toLowerCase());
@@ -430,7 +430,7 @@ function showWordModal(w) {
 }
 
 async function addFavoriteByWord(word) {
-  // Helper used when the word ID is not known locally.
+  // 当本地没有单词 ID 时使用的辅助函数。
   try {
     const res = await api('/search?q=' + encodeURIComponent(word));
     const item = res.find(w => w.word.toLowerCase() === word.toLowerCase());
@@ -444,13 +444,13 @@ async function addFavoriteByWord(word) {
 }
 
 function speak(text) {
-  // Use the browser speech synthesis API to pronounce a word.
+  // 使用浏览器语音合成接口朗读单词。
   window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
 
 async function showFavorites() {
-  // Manage and browse the user's list of favorite words.
-  // View listing all favorite words with search and article generation.
+  // 管理并浏览用户的收藏单词列表。
+  // 该视图提供搜索和文章生成功能。
   const main = document.getElementById('main');
   main.innerHTML = `
     <div class="flex flex-col gap-2 max-w-xl mx-auto">
@@ -574,7 +574,7 @@ async function showFavorites() {
 }
 
 async function continueStudy(n) {
-  // Allow the user to study additional words beyond the daily count.
+  // 允许用户在每日数量之外继续学习更多单词。
   dailyCount += n;
   localStorage.setItem('dailyCount', dailyCount);
   localStorage.setItem('study_done', 'false');
@@ -583,7 +583,7 @@ async function continueStudy(n) {
 }
 
 async function showStats() {
-  // Display learning statistics and progress chart.
+  // 显示学习统计数据和进度图表。
   await ensureWordBook();
   progress = parseInt(localStorage.getItem('progress_' + currentBook), 10) || 0;
   const learned = progress;
@@ -647,7 +647,7 @@ async function showStats() {
 }
 
 function showSettings() {
-  // Settings screen for various user preferences.
+  // 用户偏好设置界面。
   const main = document.getElementById('main');
   main.innerHTML = `
     <div class="flex flex-col gap-4 max-w-sm mx-auto">
@@ -755,7 +755,7 @@ function showSettings() {
 }
 
 function init() {
-  // Entry point after DOM is ready; route to dashboard features.
+  // DOM 准备好后的入口，路由到各功能界面。
   if (!localStorage.getItem('token')) {
     window.location.href = 'login.html';
     return;
