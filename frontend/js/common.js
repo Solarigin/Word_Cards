@@ -1,5 +1,7 @@
+// Base URL of the backend API. Update if the server is hosted elsewhere.
 const API_URL = 'http://localhost:8000';
 
+// Simple HTML escaping to avoid XSS when rendering user supplied text.
 function escapeHTML(str) {
   return str
     .replace(/&/g, '&amp;')
@@ -9,6 +11,7 @@ function escapeHTML(str) {
     .replace(/'/g, '&#39;');
 }
 
+// Generic helper for calling the backend API with the stored token.
 function api(path, options = {}) {
   options.headers = options.headers || {};
   const token = localStorage.getItem('token');
@@ -24,6 +27,7 @@ function api(path, options = {}) {
   });
 }
 
+// Password format check used on the login/register screens.
 function validatePassword(pwd) {
   return /^[A-Za-z0-9]{6,}$/.test(pwd)
     ? ''

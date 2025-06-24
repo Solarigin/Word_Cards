@@ -1,11 +1,16 @@
+"""Basic API tests exercising the main user flows."""
+
 import os, sys
+
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", ".."))
 from fastapi.testclient import TestClient
 from backend.app.main import app
 
 client = TestClient(app)
 
+
 def test_register_and_login():
+    """Users can register and subsequently log in."""
     r = client.post("/auth/register", json={"username": "alice", "password": "pwd"})
     if r.status_code == 400:
         r = client.post("/auth/login", data={"username": "alice", "password": "pwd"})
@@ -16,11 +21,13 @@ def test_register_and_login():
     assert r2.status_code == 200
     assert r2.json()["access_token"]
 
+
 def auth_header(token):
     return {"Authorization": f"Bearer {token}"}
 
 
 def test_refresh_and_search():
+    """Refresh token and search functionality."""
     r = client.post("/auth/register", json={"username": "bob", "password": "pwd"})
     if r.status_code == 400:
         r = client.post("/auth/login", data={"username": "bob", "password": "pwd"})
@@ -39,6 +46,7 @@ def test_refresh_and_search():
 
 
 def test_stats_overview():
+    """Stats endpoint returns expected keys."""
     r = client.post("/auth/register", json={"username": "carol", "password": "pwd"})
     if r.status_code == 400:
         r = client.post("/auth/login", data={"username": "carol", "password": "pwd"})
@@ -51,6 +59,7 @@ def test_stats_overview():
 
 
 def test_default_admin_login():
+    """Admin account exists and can access admin-only endpoint."""
     r = client.post("/auth/login", data={"username": "Admin", "password": "88888888"})
     assert r.status_code == 200
     token = r.json()["access_token"]
@@ -62,7 +71,9 @@ def test_default_admin_login():
 
 
 def test_daily_limit_respected():
+    """Daily study limit prevents more reviews after threshold."""
     import uuid
+
     username = "user" + uuid.uuid4().hex[:8]
     r = client.post("/auth/register", json={"username": username, "password": "pwd"})
     if r.status_code == 400:
@@ -89,6 +100,7 @@ def test_daily_limit_respected():
 
 
 def test_account_deletion_flow():
+    """Users can request deletion and admin can approve it."""
     r = client.post("/auth/register", json={"username": "deluser", "password": "pwd"})
     if r.status_code == 400:
         r = client.post("/auth/login", data={"username": "deluser", "password": "pwd"})
@@ -98,7 +110,9 @@ def test_account_deletion_flow():
     r_req = client.post("/users/request_delete", headers=headers)
     assert r_req.status_code == 200
 
-    admin_token = client.post("/auth/login", data={"username": "Admin", "password": "88888888"}).json()["access_token"]
+    admin_token = client.post(
+        "/auth/login", data={"username": "Admin", "password": "88888888"}
+    ).json()["access_token"]
     admin_headers = auth_header(admin_token)
 
     r_list = client.get("/admin/deletion_requests", headers=admin_headers)
@@ -110,8 +124,12 @@ def test_account_deletion_flow():
             user_id = d["user_id"]
     assert user_id is not None
 
-    r_appr = client.post(f"/admin/deletion_requests/{user_id}/approve", headers=admin_headers)
+    r_appr = client.post(
+        f"/admin/deletion_requests/{user_id}/approve", headers=admin_headers
+    )
     assert r_appr.status_code == 200
 
-    r_login = client.post("/auth/login", data={"username": "deluser", "password": "pwd"})
+    r_login = client.post(
+        "/auth/login", data={"username": "deluser", "password": "pwd"}
+    )
     assert r_login.status_code == 401

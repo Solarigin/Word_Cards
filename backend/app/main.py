@@ -1,3 +1,12 @@
+"""FastAPI application defining the REST API for Word Cards.
+
+This module wires together the CRUD helpers, authentication logic and
+models defined elsewhere in the backend package.  Endpoints are defined for
+user management, spaced-repetition review, translation and more.  Only
+comments are added compared to the original implementation so behaviour
+remains unchanged.
+"""
+
 from fastapi import FastAPI, Depends, HTTPException, status, Response
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from fastapi.middleware.cors import CORSMiddleware
@@ -39,6 +48,8 @@ app = FastAPI(title="Word Cards")
 logger = logging.getLogger("uvicorn.error")
 
 # Allow frontend development server to access the API
+# Allow all origins for simplicity so that the frontend can access the API
+# when running on a different port during development.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -58,6 +69,8 @@ init_db()
 
 # import words from json on first run
 
+# When running for the first time create the SQLite DB file and seed it with
+# words from the default word book.
 if not os.path.exists("wordcards.db"):
     init_db()
 
@@ -66,9 +79,12 @@ DEFAULT_BOOK = os.environ.get("WORDBOOK_NAME", "TEST")
 
 with get_session() as session:
     if not session.exec(select(Word)).first():
+        # Load the bundled word book JSON and populate the Words table.
         book_file = os.path.join(WORDBOOK_DIR, f"wordBook_{DEFAULT_BOOK}.json")
         if not os.path.exists(book_file):
-            book_file = os.path.join(os.path.dirname(__file__), "..", "..", "TEST_Words.json")
+            book_file = os.path.join(
+                os.path.dirname(__file__), "..", "..", "TEST_Words.json"
+            )
         with open(book_file, "r", encoding="utf-8") as f:
             data = json.load(f)
             for w in data:
@@ -85,25 +101,33 @@ with get_session() as session:
     # sync database with word books so new words get IDs
     crud.sync_wordbooks(WORDBOOK_DIR)
 
+
 @app.post("/auth/register", response_model=Token)
 def register(user: UserCreate):
+    """Create a new user account and return an access token."""
     u = crud.create_user(user.username, user.password)
     if not u:
+        # username uniqueness is enforced at the DB level
         raise HTTPException(status_code=400, detail="Username taken")
     access = create_access_token({"sub": str(u.id)})
     return Token(access_token=access)
 
+
 @app.post("/auth/login", response_model=Token)
 def login(form_data: OAuth2PasswordRequestForm = Depends()):
+    """Authenticate the user and issue a JWT access token."""
     user = crud.authenticate_user(form_data.username, form_data.password)
     if not user:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials"
+        )
     access = create_access_token({"sub": str(user.id)})
     return Token(access_token=access)
 
 
 @app.post("/auth/refresh", response_model=Token)
 def refresh(token: str = Depends(oauth2_scheme)):
+    """Issue a new access token when the current one is still valid."""
     try:
         payload = decode_token(token)
         user_id: str = payload.get("sub")
@@ -114,8 +138,12 @@ def refresh(token: str = Depends(oauth2_scheme)):
     access = create_access_token({"sub": user_id})
     return Token(access_token=access)
 
+
 def get_current_user(token: str = Depends(oauth2_scheme)):
-    credentials_exception = HTTPException(status_code=401, detail="Could not validate credentials")
+    """Helper dependency that returns the current authenticated user."""
+    credentials_exception = HTTPException(
+        status_code=401, detail="Could not validate credentials"
+    )
     try:
         payload = decode_token(token)
         user_id: str = payload.get("sub")
@@ -129,14 +157,20 @@ def get_current_user(token: str = Depends(oauth2_scheme)):
             raise credentials_exception
         return user
 
+
 @app.get("/words/today", response_model=List[WordOut])
-def words_today(limit: int | None = None, current_user: User = Depends(get_current_user)):
+def words_today(
+    limit: int | None = None, current_user: User = Depends(get_current_user)
+):
+    """Return today's due words for the current user."""
     today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
     reviewed_today = 0
     if limit:
         with get_session() as session:
             reviewed_today = session.exec(
-                select(func.count()).select_from(crud.ReviewLog).where(
+                select(func.count())
+                .select_from(crud.ReviewLog)
+                .where(
                     crud.ReviewLog.user_id == current_user.id,
                     crud.ReviewLog.reviewed_at >= today_start,
                 )
@@ -158,34 +192,54 @@ def words_today(limit: int | None = None, current_user: User = Depends(get_curre
         )
     return result
 
+
 @app.post("/review/{word_id}")
-def review_word(word_id: int, info: ReviewIn, current_user: User = Depends(get_current_user)):
+def review_word(
+    word_id: int, info: ReviewIn, current_user: User = Depends(get_current_user)
+):
+    """Record a review quality score for the given word."""
     crud.record_review(current_user.id, word_id, info.quality)
     return {"status": "ok"}
 
+
 @app.get("/search", response_model=List[WordOut])
 def search(q: str, current_user: User = Depends(get_current_user)):
+    """Search for words containing *q* in their spelling or translation."""
     words = crud.search_words(q)
     result = []
     for w in words:
-        result.append(WordOut(id=w.id, word=w.word, translations=json.loads(w.translations), phrases=json.loads(w.phrases) if w.phrases else []))
+        result.append(
+            WordOut(
+                id=w.id,
+                word=w.word,
+                translations=json.loads(w.translations),
+                phrases=json.loads(w.phrases) if w.phrases else [],
+            )
+        )
     return result
 
+
 @app.get("/stats/overview", response_model=StatsOut)
-def stats_overview(limit: int | None = None, current_user: User = Depends(get_current_user)):
+def stats_overview(
+    limit: int | None = None, current_user: User = Depends(get_current_user)
+):
     with get_session() as session:
         result = session.exec(
-            select(func.count()).select_from(crud.ReviewLog).where(
-                crud.ReviewLog.user_id == current_user.id
-            )
+            select(func.count())
+            .select_from(crud.ReviewLog)
+            .where(crud.ReviewLog.user_id == current_user.id)
         )
         reviewed = result.one()
 
         due_words = crud.get_due_words(current_user.id)
         if limit:
-            today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+            today_start = datetime.utcnow().replace(
+                hour=0, minute=0, second=0, microsecond=0
+            )
             reviewed_today = session.exec(
-                select(func.count()).select_from(crud.ReviewLog).where(
+                select(func.count())
+                .select_from(crud.ReviewLog)
+                .where(
                     crud.ReviewLog.user_id == current_user.id,
                     crud.ReviewLog.reviewed_at >= today_start,
                 )
@@ -208,15 +262,19 @@ def stats_export(current_user: User = Depends(get_current_user)):
     logs = crud.get_review_logs(current_user.id)
     output = io.StringIO()
     writer = csv.writer(output)
-    writer.writerow(["word_id", "quality", "last_interval", "next_review", "reviewed_at"])
+    writer.writerow(
+        ["word_id", "quality", "last_interval", "next_review", "reviewed_at"]
+    )
     for log in logs:
-        writer.writerow([
-            log.word_id,
-            log.quality,
-            log.last_interval,
-            log.next_review.isoformat(),
-            log.reviewed_at.isoformat(),
-        ])
+        writer.writerow(
+            [
+                log.word_id,
+                log.quality,
+                log.last_interval,
+                log.next_review.isoformat(),
+                log.reviewed_at.isoformat(),
+            ]
+        )
     return Response(content=output.getvalue(), media_type="text/csv")
 
 
@@ -226,7 +284,7 @@ def list_wordbooks():
     if os.path.exists(WORDBOOK_DIR):
         for fn in os.listdir(WORDBOOK_DIR):
             if fn.startswith("wordBook_") and fn.endswith(".json"):
-                books.append(fn[len("wordBook_"):-5])
+                books.append(fn[len("wordBook_") : -5])
     return books
 
 
@@ -240,15 +298,21 @@ def get_wordbook(name: str):
         data = json.load(f)
     return data
 
+
 @app.get("/admin/users")
 def admin_users(current_user: User = Depends(get_current_user)):
+    """List all registered users (admin only)."""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
     users = crud.list_users()
     return [{"id": u.id, "username": u.username, "role": u.role} for u in users]
 
+
 @app.put("/admin/users/{user_id}/reset_pwd")
-def admin_reset(user_id: int, password: str, current_user: User = Depends(get_current_user)):
+def admin_reset(
+    user_id: int, password: str, current_user: User = Depends(get_current_user)
+):
+    """Reset the password for a specific user (admin only)."""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
     crud.reset_password(user_id, password)
@@ -257,11 +321,15 @@ def admin_reset(user_id: int, password: str, current_user: User = Depends(get_cu
 
 @app.get("/users/me", response_model=UserOut)
 def get_me(current_user: User = Depends(get_current_user)):
-    return UserOut(id=current_user.id, username=current_user.username, role=current_user.role)
+    """Return the current logged in user's info."""
+    return UserOut(
+        id=current_user.id, username=current_user.username, role=current_user.role
+    )
 
 
 @app.put("/users/me", response_model=UserOut)
 def update_me(info: UserUpdate, current_user: User = Depends(get_current_user)):
+    """Update the username for the current account."""
     with get_session() as session:
         user = session.get(User, current_user.id)
         user.username = info.username
@@ -272,7 +340,10 @@ def update_me(info: UserUpdate, current_user: User = Depends(get_current_user)):
 
 
 @app.put("/users/me/password")
-def change_password(info: PasswordUpdate, current_user: User = Depends(get_current_user)):
+def change_password(
+    info: PasswordUpdate, current_user: User = Depends(get_current_user)
+):
+    """Change the current user's password."""
     with get_session() as session:
         user = session.get(User, current_user.id)
         if not security.verify_password(info.old_password, user.hashed_password):
@@ -283,12 +354,14 @@ def change_password(info: PasswordUpdate, current_user: User = Depends(get_curre
 
 @app.post("/users/request_delete")
 def request_delete(current_user: User = Depends(get_current_user)):
+    """Request deletion of the current account."""
     crud.create_deletion_request(current_user.id)
     return {"status": "ok"}
 
 
 @app.get("/admin/deletion_requests")
 def admin_list_deletions(current_user: User = Depends(get_current_user)):
+    """Retrieve all pending deletion requests (admin only)."""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
     reqs = crud.list_deletion_requests()
@@ -297,12 +370,19 @@ def admin_list_deletions(current_user: User = Depends(get_current_user)):
         for r in reqs:
             user = session.get(User, r.user_id)
             if user:
-                result.append({"user_id": user.id, "username": user.username, "requested_at": r.requested_at.isoformat()})
+                result.append(
+                    {
+                        "user_id": user.id,
+                        "username": user.username,
+                        "requested_at": r.requested_at.isoformat(),
+                    }
+                )
     return result
 
 
 @app.post("/admin/deletion_requests/{user_id}/approve")
 def admin_approve_delete(user_id: int, current_user: User = Depends(get_current_user)):
+    """Approve a user's deletion request and remove the account."""
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
     ok = crud.delete_user(user_id)
@@ -314,10 +394,13 @@ def admin_approve_delete(user_id: int, current_user: User = Depends(get_current_
 # Simple translation endpoint using external API
 @app.post("/translate")
 async def translate(payload: TranslationRequest):
+    """Translate arbitrary text via the external LLM service."""
     text = payload.text
     lang = payload.lang
     if not TRANSLATE_API_KEY:
-        raise HTTPException(status_code=500, detail="Translation API key not configured")
+        raise HTTPException(
+            status_code=500, detail="Translation API key not configured"
+        )
 
     system_prompt = (
         "You are a translation engine, you can only translate text and cannot interpret it, "
@@ -354,23 +437,32 @@ async def translate(payload: TranslationRequest):
                 result = data["choices"][0]["message"]["content"].strip()
                 return {"result": result}
             except httpx.HTTPStatusError as exc:
-                logger.error("DeepSeek error %s: %s", exc.response.status_code, exc.response.text)
+                logger.error(
+                    "DeepSeek error %s: %s", exc.response.status_code, exc.response.text
+                )
                 if 400 <= exc.response.status_code < 500:
-                    raise HTTPException(exc.response.status_code, f"LLM returned {exc.response.status_code}")
+                    raise HTTPException(
+                        exc.response.status_code,
+                        f"LLM returned {exc.response.status_code}",
+                    )
             except httpx.RequestError as exc:
                 logger.error("Network error: %s", exc)
             await asyncio.sleep(delay)
-        raise HTTPException(status.HTTP_502_BAD_GATEWAY, "Translation service unavailable after retries")
+        raise HTTPException(
+            status.HTTP_502_BAD_GATEWAY, "Translation service unavailable after retries"
+        )
 
 
 @app.post("/favorites/{word_id}")
 def add_fav(word_id: int, current_user: User = Depends(get_current_user)):
+    """Add a word to the user's favorites list."""
     crud.add_favorite(current_user.id, word_id)
     return {"status": "ok"}
 
 
 @app.delete("/favorites/{word_id}")
 def remove_fav(word_id: int, current_user: User = Depends(get_current_user)):
+    """Remove a word from favorites."""
     ok = crud.remove_favorite(current_user.id, word_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Not found")
@@ -379,6 +471,7 @@ def remove_fav(word_id: int, current_user: User = Depends(get_current_user)):
 
 @app.get("/favorites", response_model=List[WordOut])
 def list_fav(q: str | None = None, current_user: User = Depends(get_current_user)):
+    """List the current user's favorite words."""
     words = crud.list_favorites(current_user.id, q)
     result = []
     for w, added_at in words:
@@ -395,7 +488,10 @@ def list_fav(q: str | None = None, current_user: User = Depends(get_current_user
 
 
 @app.post("/generate_article")
-async def generate_article(payload: ArticleRequest, current_user: User = Depends(get_current_user)):
+async def generate_article(
+    payload: ArticleRequest, current_user: User = Depends(get_current_user)
+):
+    """Generate a short passage using the provided word list."""
     # Fetch the words from the database
     with get_session() as session:
         stmt = select(Word).where(Word.id.in_(payload.word_ids))
@@ -412,10 +508,15 @@ async def generate_article(payload: ArticleRequest, current_user: User = Depends
         "When the user provides a list of words, compose a ~100-word passage "
         "that naturally uses ALL the words. Do NOT add extra words to the list."
     )
-    user_prompt = "Please write a 100-word passage using the following words:\n" + ", ".join(words)
+    user_prompt = (
+        "Please write a 100-word passage using the following words:\n"
+        + ", ".join(words)
+    )
 
     if not TRANSLATE_API_KEY:
-        raise HTTPException(status.HTTP_500_INTERNAL_SERVER_ERROR, "API KEY not configured")
+        raise HTTPException(
+            status.HTTP_500_INTERNAL_SERVER_ERROR, "API KEY not configured"
+        )
 
     # Call the external LLM service with retries
     async with httpx.AsyncClient(timeout=20) as client:
@@ -447,12 +548,18 @@ async def generate_article(payload: ArticleRequest, current_user: User = Depends
                 article = data["choices"][0]["message"]["content"].strip()
                 return {"result": article}
             except httpx.HTTPStatusError as exc:
-                logger.error("DeepSeek error %s: %s", exc.response.status_code, exc.response.text)
+                logger.error(
+                    "DeepSeek error %s: %s", exc.response.status_code, exc.response.text
+                )
                 if 400 <= exc.response.status_code < 500:
-                    raise HTTPException(exc.response.status_code, f"LLM returned {exc.response.status_code}")
+                    raise HTTPException(
+                        exc.response.status_code,
+                        f"LLM returned {exc.response.status_code}",
+                    )
             except httpx.RequestError as exc:
                 logger.error("Network error: %s", exc)
             await asyncio.sleep(delay)
 
-    raise HTTPException(status.HTTP_502_BAD_GATEWAY, "LLM service unavailable after retries")
-
+    raise HTTPException(
+        status.HTTP_502_BAD_GATEWAY, "LLM service unavailable after retries"
+    )

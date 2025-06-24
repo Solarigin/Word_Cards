@@ -1,3 +1,10 @@
+"""Database helper functions used by the FastAPI routes.
+
+This module abstracts common CRUD operations such as creating users,
+recording review history and maintaining favorites.  The logic is kept
+framework agnostic so it can be tested independently of the API layer.
+"""
+
 from sqlmodel import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
@@ -12,7 +19,9 @@ from .security import get_password_hash, verify_password
 def create_user(username: str, password: str, role: str = "user"):
     """Create a new user and persist it to the database and a JSON file."""
     with get_session() as session:
-        user = User(username=username, hashed_password=get_password_hash(password), role=role)
+        user = User(
+            username=username, hashed_password=get_password_hash(password), role=role
+        )
         session.add(user)
         try:
             session.commit()
@@ -35,6 +44,7 @@ def create_user(username: str, password: str, role: str = "user"):
 
 
 def authenticate_user(username: str, password: str):
+    """Return the user if the credentials are valid, otherwise ``None``."""
     with get_session() as session:
         statement = select(User).where(User.username == username)
         user = session.exec(statement).first()
@@ -63,8 +73,13 @@ def get_due_words(user_id: int, limit: int | None = None):
 
 
 def record_review(user_id: int, word_id: int, quality: int):
+    """Update the spaced repetition log for a word review."""
     with get_session() as session:
-        log = session.exec(select(ReviewLog).where(ReviewLog.user_id == user_id, ReviewLog.word_id == word_id)).first()
+        log = session.exec(
+            select(ReviewLog).where(
+                ReviewLog.user_id == user_id, ReviewLog.word_id == word_id
+            )
+        ).first()
         interval = 1
         if log:
             interval = log.last_interval
@@ -80,7 +95,13 @@ def record_review(user_id: int, word_id: int, quality: int):
             log.next_review = next_review
             log.reviewed_at = datetime.utcnow()
         else:
-            log = ReviewLog(user_id=user_id, word_id=word_id, quality=quality, last_interval=interval, next_review=next_review)
+            log = ReviewLog(
+                user_id=user_id,
+                word_id=word_id,
+                quality=quality,
+                last_interval=interval,
+                next_review=next_review,
+            )
             session.add(log)
         session.commit()
         session.refresh(log)
@@ -107,17 +128,20 @@ def search_words(query: str):
 
 
 def get_review_logs(user_id: int):
+    """Return all review log entries for the given user."""
     with get_session() as session:
         statement = select(ReviewLog).where(ReviewLog.user_id == user_id)
         return session.exec(statement).all()
 
 
 def list_users():
+    """Return all user objects."""
     with get_session() as session:
         return session.exec(select(User)).all()
 
 
 def reset_password(user_id: int, new_password: str):
+    """Update the stored password hash for the user."""
     with get_session() as session:
         user = session.get(User, user_id)
         if not user:
@@ -146,6 +170,7 @@ def ensure_default_admin():
 
 
 def create_deletion_request(user_id: int):
+    """Record that a user wants their account removed."""
     with get_session() as session:
         exists = session.exec(
             select(DeletionRequest).where(DeletionRequest.user_id == user_id)
@@ -160,17 +185,21 @@ def create_deletion_request(user_id: int):
 
 
 def list_deletion_requests():
+    """Return all outstanding deletion requests."""
     with get_session() as session:
         return session.exec(select(DeletionRequest)).all()
 
 
 def delete_user(user_id: int):
+    """Fully remove a user and all related data."""
     with get_session() as session:
         user = session.get(User, user_id)
         if not user:
             return False
         session.query(ReviewLog).filter(ReviewLog.user_id == user_id).delete()
-        session.query(DeletionRequest).filter(DeletionRequest.user_id == user_id).delete()
+        session.query(DeletionRequest).filter(
+            DeletionRequest.user_id == user_id
+        ).delete()
         session.delete(user)
         session.commit()
 
@@ -187,6 +216,7 @@ def delete_user(user_id: int):
 
 
 def add_favorite(user_id: int, word_id: int):
+    """Mark a word as a favorite for the user."""
     with get_session() as session:
         exists = session.exec(
             select(Favorite).where(
@@ -203,6 +233,7 @@ def add_favorite(user_id: int, word_id: int):
 
 
 def remove_favorite(user_id: int, word_id: int) -> bool:
+    """Delete a favorite mapping."""
     with get_session() as session:
         fav = session.exec(
             select(Favorite).where(
@@ -217,6 +248,7 @@ def remove_favorite(user_id: int, word_id: int) -> bool:
 
 
 def list_favorites(user_id: int, q: str | None = None):
+    """Return a user's favorites, optionally filtered by ``q``."""
     with get_session() as session:
         statement = (
             select(Word, Favorite.added_at)
@@ -239,9 +271,7 @@ def sync_wordbooks(directory: str):
         return
 
     with get_session() as session:
-        existing = {
-            w.word.lower(): w.id for w in session.exec(select(Word)).all()
-        }
+        existing = {w.word.lower(): w.id for w in session.exec(select(Word)).all()}
 
         for fn in os.listdir(directory):
             if not fn.startswith("wordBook_") or not fn.endswith(".json"):
@@ -258,7 +288,9 @@ def sync_wordbooks(directory: str):
                     continue
                 word = Word(
                     word=w["word"],
-                    translations=json.dumps(w.get("translations", []), ensure_ascii=False),
+                    translations=json.dumps(
+                        w.get("translations", []), ensure_ascii=False
+                    ),
                     phrases=json.dumps(w.get("phrases", []), ensure_ascii=False),
                 )
                 session.add(word)
