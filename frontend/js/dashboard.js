@@ -1,18 +1,20 @@
 // 用户仪表板的主要逻辑，包含学习、搜索和设置功能。
 
+const userId = localStorage.getItem('userId') || '';
+const userKey = userId ? `u${userId}_` : '';
 let studyWords = [];
 let studyIndex = 0;
 let showBack = false;
 let showAllPhrases = false;
-let dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
-let currentBook = localStorage.getItem('wordBook') || 'TEST';
+let dailyCount = parseInt(localStorage.getItem(`${userKey}dailyCount`), 10) || 5;
+let currentBook = localStorage.getItem(`${userKey}wordBook`) || 'TEST';
 let loadedBook = null;
 let wordBookData = [];
 let progress = 0;
 let favorites = new Map();
-let statsCounts = JSON.parse(localStorage.getItem('statsCounts') || '{"unknown":0,"fuzzy":0,"known":0}');
-let statsWords = JSON.parse(localStorage.getItem('statsWords') || '{"unknown":[],"fuzzy":[],"known":[]}');
-let progressHistory = JSON.parse(localStorage.getItem('progressHistory') || '[]');
+let statsCounts = JSON.parse(localStorage.getItem(`${userKey}statsCounts`) || '{"unknown":0,"fuzzy":0,"known":0}');
+let statsWords = JSON.parse(localStorage.getItem(`${userKey}statsWords`) || '{"unknown":[],"fuzzy":[],"known":[]}');
+let progressHistory = JSON.parse(localStorage.getItem(`${userKey}progressHistory`) || '[]');
 let speakOnLoad = localStorage.getItem('speakOnLoad') !== 'false';
 let shuffleStudy = localStorage.getItem('shuffleStudy') === 'true';
 
@@ -35,7 +37,7 @@ function handleKey(e) {
 
 // 如未加载则从磁盘读取选择的词书。
 async function ensureWordBook() {
-  currentBook = localStorage.getItem('wordBook') || 'TEST';
+  currentBook = localStorage.getItem(`${userKey}wordBook`) || 'TEST';
   if (loadedBook !== currentBook) {
     wordBookData = await loadWordBook(currentBook);
     loadedBook = currentBook;
@@ -44,7 +46,7 @@ async function ensureWordBook() {
 
 // 保存当前词书的学习进度。
 function saveProgress() {
-  localStorage.setItem('progress_' + currentBook, progress);
+  localStorage.setItem(`${userKey}progress_${currentBook}`, progress);
 }
 
 // 获取词书 JSON 文件。
@@ -55,18 +57,20 @@ async function loadWordBook(name) {
 // 退出登录按钮的处理函数。
 function logout() {
   localStorage.removeItem('token');
+  localStorage.removeItem('userId');
+  localStorage.removeItem('username');
   window.location.href = 'login.html';
 }
 
 // 显示卡片式学习界面。
 async function showStudy() {
-  dailyCount = parseInt(localStorage.getItem('dailyCount'), 10) || 5;
+  dailyCount = parseInt(localStorage.getItem(`${userKey}dailyCount`), 10) || 5;
   speakOnLoad = localStorage.getItem('speakOnLoad') !== 'false';
   shuffleStudy = localStorage.getItem('shuffleStudy') === 'true';
   await refreshFavorites();
   await ensureWordBook();
-  progress = parseInt(localStorage.getItem('progress_' + currentBook), 10) || 0;
-  if (localStorage.getItem('study_done') === 'true') {
+  progress = parseInt(localStorage.getItem(`${userKey}progress_${currentBook}`), 10) || 0;
+  if (localStorage.getItem(`${userKey}study_done`) === 'true') {
     studyWords = [];
     studyIndex = 1; // 强制显示“已完成”提示
   } else {
@@ -80,7 +84,7 @@ async function showStudy() {
     const slice = remaining.slice(0, dailyCount);
     studyWords = slice.map(w => ({ word: w, mode: 'normal' }));
     studyIndex = 0;
-    localStorage.setItem('study_done', 'false');
+    localStorage.setItem(`${userKey}study_done`, 'false');
   }
   showBack = false;
   showAllPhrases = false;
@@ -98,7 +102,7 @@ function renderStudy() {
         <button id="more10" class="border rounded px-3 py-1 bg-blue-500 text-white">继续学习10个</button>
       </div>`;
     if (studyIndex > 0) {
-      localStorage.setItem('study_done', 'true');
+      localStorage.setItem(`${userKey}study_done`, 'true');
     }
     if (!card) {
       const b5 = document.getElementById('more5');
@@ -209,10 +213,10 @@ function renderStudy() {
         } else {
           progressHistory.push({ time: now, progress });
         }
-        localStorage.setItem('progressHistory', JSON.stringify(progressHistory));
+        localStorage.setItem(`${userKey}progressHistory`, JSON.stringify(progressHistory));
       }
-      localStorage.setItem('statsCounts', JSON.stringify(statsCounts));
-      localStorage.setItem('statsWords', JSON.stringify(statsWords));
+      localStorage.setItem(`${userKey}statsCounts`, JSON.stringify(statsCounts));
+      localStorage.setItem(`${userKey}statsWords`, JSON.stringify(statsWords));
       studyIndex++;
       renderStudy();
     };
@@ -576,8 +580,8 @@ async function showFavorites() {
 async function continueStudy(n) {
   // 允许用户在每日数量之外继续学习更多单词。
   dailyCount += n;
-  localStorage.setItem('dailyCount', dailyCount);
-  localStorage.setItem('study_done', 'false');
+  localStorage.setItem(`${userKey}dailyCount`, dailyCount);
+  localStorage.setItem(`${userKey}study_done`, 'false');
   showAllPhrases = false;
   await showStudy();
 }
@@ -585,7 +589,7 @@ async function continueStudy(n) {
 async function showStats() {
   // 显示学习统计数据和进度图表。
   await ensureWordBook();
-  progress = parseInt(localStorage.getItem('progress_' + currentBook), 10) || 0;
+  progress = parseInt(localStorage.getItem(`${userKey}progress_${currentBook}`), 10) || 0;
   const learned = progress;
   const daily = dailyCount;
   const total = wordBookData.length;
@@ -692,7 +696,7 @@ function showSettings() {
   api('/wordbooks').then(list => {
     const select = document.getElementById('wordBookSelect');
     select.innerHTML = list.map(n => `<option value="${escapeHTML(n)}">${escapeHTML(n)}</option>`).join('');
-    const current = localStorage.getItem('wordBook');
+    const current = localStorage.getItem(`${userKey}wordBook`);
     if (current) select.value = current;
   });
   document.getElementById('speakOnLoad').checked = speakOnLoad;
@@ -715,6 +719,8 @@ function showSettings() {
     try {
       await api('/users/me/password', { method: 'PUT', body: { old_password: oldPwd, new_password: newPwd } });
       localStorage.removeItem('token');
+      localStorage.removeItem('userId');
+      localStorage.removeItem('username');
       window.location.href = 'login.html';
     } catch {
       document.getElementById('settingsMsg').textContent = 'Error';
@@ -724,11 +730,11 @@ function showSettings() {
     const daily = parseInt(document.getElementById('dailyInput').value, 10);
     if (!isNaN(daily) && daily > 0) {
       dailyCount = daily;
-      localStorage.setItem('dailyCount', daily);
+      localStorage.setItem(`${userKey}dailyCount`, daily);
     }
     const book = document.getElementById('wordBookSelect').value;
     if (book) {
-      localStorage.setItem('wordBook', book);
+      localStorage.setItem(`${userKey}wordBook`, book);
       loadedBook = null;
     }
     const speakChk = document.getElementById('speakOnLoad').checked;

@@ -13,6 +13,8 @@ async function afterAuth(token) {
   try {
     const me = await api('/users/me');
     localStorage.setItem('role', me.role);
+    localStorage.setItem('userId', me.id);
+    localStorage.setItem('username', me.username);
     window.location.href = me.role === 'admin' ? 'admin.html' : 'dashboard.html';
   } catch {
     document.getElementById('msg').textContent = 'Login failed';

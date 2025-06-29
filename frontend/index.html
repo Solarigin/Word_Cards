@@ -21,6 +21,8 @@
         if (!res.ok) throw new Error();
         const user = await res.json();
         localStorage.setItem('role', user.role);
+        localStorage.setItem('userId', user.id);
+        localStorage.setItem('username', user.username);
         window.location.href = user.role === 'admin' ? 'admin.html' : 'dashboard.html';
       } catch {
         localStorage.removeItem('token');
